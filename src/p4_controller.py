@@ -643,6 +643,11 @@ class SimController(object):
             elif agentfile == "agent_drl":
                 kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
                         "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name}
+
+            elif agentfile == "agent_drl_policy":
+                kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
+                          "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name, "start":self.cfg["START"]}
+
             self.agent = agentmod.Agent(**kwargs)
             self.agent.reset()
             self.updateStatus("Initialised " + agentfile)

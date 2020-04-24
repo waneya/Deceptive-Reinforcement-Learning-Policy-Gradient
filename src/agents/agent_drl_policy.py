@@ -1,16 +1,14 @@
 import os.path
 import math
-import qFunction
+import policy_gradient
 from collections import Counter
 
 
-ALPHA = 0.2
-GAMMA = 1
 
-TERM_V = 10000.0
+EPISODES = 10000.0
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-Q_DIR = "../drl/qfunc/"
+PP_DIR = "../drl/PP/"
 BETA = 1
 DECEPTIVE = True
 PRUNE = True
@@ -18,37 +16,45 @@ DEBUG = True
 
 
 class Agent(object):
-    def __init__(self, lmap, real_goal, fake_goals, map_file):
+    def __init__(self, lmap, real_goal, fake_goals, map_file, start):
         self.lmap = lmap
         self.real_goal = real_goal
         self.fake_goals = fake_goals
+        self.startPosition = start # used for policy training
         if DEBUG:
             print self.fake_goals
-        real_q_file = Q_DIR + map_file + ".{:d}.{:d}.q".format(real_goal[0], real_goal[1])
-        self.real_q = qFunction.QFunction(lmap.width, lmap.height)
-        if os.path.isfile(real_q_file):
-            if DEBUG:
-                print "loading q function for", real_goal
-            self.real_q.load(real_q_file)
-        else:
-            if DEBUG:
-                print "training q function for", real_goal
-            qFunction.train(self.real_q, lmap, real_goal, TERM_V, GAMMA)
-            self.real_q.save(real_q_file)
-        self.fake_q = []
-        for i, fg in enumerate(fake_goals):
-            fake_q_file = Q_DIR + map_file + ".{:d}.{:d}.q".format(fg[0], fg[1])
-            fq = qFunction.QFunction(lmap.width, lmap.height)
-            if os.path.isfile(fake_q_file):
+
+
+        # Section of code below will either
+        # load policy parameters for real
+        # and fake goals, or train them
+        # and save the results.
+        def loadParamOrTrainPolicy(goal):
+            goalParaFile = PP_DIR + map_file + ".{:d}.{:d}.q".format(goal[0], goal[1])
+            policy = policy_gradient.LinearPolicy(parameters = None)
+            if os.path.isfile(goalParaFile):
                 if DEBUG:
-                    print "loading q function for", fg
-                fq.load(fake_q_file)
+                    print "loading parameters for goal: ", goal
+                policy.loadParameters(goalParaFile)
             else:
                 if DEBUG:
-                    print "training q function for", fg
-                qFunction.train(fq, lmap, fg, TERM_V, GAMMA)
-                fq.save(fake_q_file)
-            self.fake_q.append(fq)
+                    print "training parameters for goal: ", goal
+
+                policy_gradient.trainPolicy(policy, lmap, start, goal, EPISODES) # policy and training parameters defined in policy_gradient
+                policy.saveParameters(goalParaFile)
+
+
+
+        self.realGoalPolicy = loadParamOrTrainPolicy(self.real_goal)
+        self.fakeGoalsPolicy = []
+        for i, fg in enumerate(fake_goals):
+
+            fakeGoalPolicy = loadParamOrTrainPolicy(fg)
+            self.fakeGoalsPolicy.append(fakeGoalPolicy)
+
+        # @TODO after this point first work on the TODO of policy_gradient and then work after wards
+
+
         self.sum_q_diff = [0.0] * (len(fake_goals) + 1)
         self.d_set = set(range(len(fake_goals)))
         self.passed = set()
@@ -62,11 +68,11 @@ class Agent(object):
     def fakeGoalElimination(self, current, m_idx):
         eli_set = set()
         for fg in self.d_set:
-            fq = self.fake_q[fg]
+            fq = self.fakeGoalsPolicy[fg]
             nq = fq.qValue(current, m_idx)
             if DEBUG:
                 print "check elimination:", fg, "nq:", nq
-            if nq == TERM_V:
+            if nq == EPISODES:
                 if DEBUG:
                     print "pass fake goal"
                 self.passed.add(fg)
@@ -78,7 +84,7 @@ class Agent(object):
             print "remove:", eli_set, "remain:", self.d_set, "\n"
 
     def fakeGoalReconsideration(self, current, m_idx):
-        for fg, fq in enumerate(self.fake_q):
+        for fg, fq in enumerate(self.fakeGoalsPolicy):
             if fg in self.d_set:
                 continue
             if DEBUG:
@@ -99,7 +105,7 @@ class Agent(object):
     def diverge(self, fg, current, m_idx):
         act = ACTIONS[m_idx]
         state_p = (current[0] + act[0], current[1] + act[1])
-        fq = self.fake_q[fg]
+        fq = self.fakeGoalsPolicy[fg]
         q = fq.value(current)
         nq = fq.value(state_p)
         if DEBUG:
@@ -111,15 +117,15 @@ class Agent(object):
             print "\ncurrent: ", current
         x, y = current
         candidates = list()
-        rqs = self.real_q.value(current)
+        rqs = self.policy.value(current)
         for i, a in enumerate(ACTIONS):
             state_p = (x + a[0], y + a[1])
             if DEBUG:
                 print "\n", current, "->", state_p, "action", i
             if not self.lmap.isPassable(state_p, current) or state_p in self.history:
                 continue
-            rnq = self.real_q.value(state_p)
-            rq = self.real_q.qValue(current, i)
+            rnq = self.policy.value(state_p)
+            rq = self.policy.qValue(current, i)
             if DEBUG:
                 print "next+e: ", rnq * (1 + EPSILON), " qs: ", rqs
             if rnq * (1 + EPSILON) >= rqs:
@@ -127,7 +133,7 @@ class Agent(object):
                     print "realg: q*: {:.3f}, q: {:.3f}, q_diff: {:.3f}, nq: {:.3f}, qd_ratio: {:.3f}" \
                         .format(rqs, rq, rqs - rq, rnq, (rqs - rq) / rqs)
                     for fg in self.d_set:
-                        fq = self.fake_q[fg]
+                        fq = self.fakeGoalsPolicy[fg]
                         qs = fq.value(current)
                         nq = fq.value(state_p)
                         q = fq.qValue(current, i)
@@ -143,7 +149,7 @@ class Agent(object):
                             if self.diverge(fg, current, i):
                                 continue
                         tmp_d_set.add(fg)
-                        fq = self.fake_q[fg]
+                        fq = self.fakeGoalsPolicy[fg]
                         qs = fq.value(current)
                         q = fq.qValue(current, i)
                         q_diffs.append(self.sum_q_diff[fg] + qs - q)
@@ -182,9 +188,9 @@ class Agent(object):
             # and reconsider
             self.fakeGoalReconsideration(current, a_idx)
         # update sum q_diff
-        rq = self.real_q.qValue(current, a_idx)
+        rq = self.policy.qValue(current, a_idx)
         self.sum_q_diff[-1] += rqs - rq
-        for fg, fq in enumerate(self.fake_q):
+        for fg, fq in enumerate(self.fakeGoalsPolicy):
             qs = fq.value(current)
             q = fq.qValue(current, a_idx)
             self.sum_q_diff[fg] += qs - q
@@ -192,7 +198,7 @@ class Agent(object):
             print "sum q diff:", self.sum_q_diff, "\n"
         move = (x + ACTIONS[a_idx][0], y + ACTIONS[a_idx][1])
         # update closest point
-        for fg, fq in enumerate(self.fake_q):
+        for fg, fq in enumerate(self.fakeGoalsPolicy):
             nq = fq.value(move)
             self.closest[fg] = max(self.closest[fg], nq)
         # update history
@@ -210,7 +216,7 @@ class Agent(object):
                 print "\n", current, "->", state_p, "action", i
             if not self.lmap.isPassable(state_p, current) or state_p in self.history:
                 continue
-            q = self.real_q.qValue(current, i)
+            q = self.policy.qValue(current, i)
             if DEBUG:
                 print "Q value:", q
             candidates[state_p] = q
