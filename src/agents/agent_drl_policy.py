@@ -5,24 +5,29 @@ from collections import Counter
 
 
 
-EPISODES = 10000.0
+EPISODES = 10000
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 PP_DIR = "../drl/PP/"
 BETA = 1
-DECEPTIVE = True
+DECEPTIVE = False
 PRUNE = True
 DEBUG = True
 
 
 class Agent(object):
     def __init__(self, lmap, real_goal, fake_goals, map_file, start):
+        print("Loading Agent")
         self.lmap = lmap
         self.real_goal = real_goal
         self.fake_goals = fake_goals
         self.startPosition = start # used for policy training
+
         if DEBUG:
             print self.fake_goals
+
+
+
 
 
         # Section of code below will either
@@ -30,9 +35,13 @@ class Agent(object):
         # and fake goals, or train them
         # and save the results.
         def loadParamOrTrainPolicy(goal):
-            goalParaFile = PP_DIR + map_file + ".{:d}.{:d}.q".format(goal[0], goal[1])
-            policy = policy_gradient.LinearPolicy(parameters = None)
-            if os.path.isfile(goalParaFile):
+            goalParaFile = PP_DIR + map_file + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
+            # In policy variable below:
+            # Can also set alpha and gamma value
+
+            policy = policy_gradient.LinearPolicy()
+            fileFound = os.path.isfile(goalParaFile)
+            if fileFound:
                 if DEBUG:
                     print "loading parameters for goal: ", goal
                 policy.loadParameters(goalParaFile)
@@ -43,7 +52,7 @@ class Agent(object):
                 policy_gradient.trainPolicy(policy, lmap, start, goal, EPISODES) # policy and training parameters defined in policy_gradient
                 policy.saveParameters(goalParaFile)
 
-
+            return policy
 
         self.realGoalPolicy = loadParamOrTrainPolicy(self.real_goal)
         self.fakeGoalsPolicy = []

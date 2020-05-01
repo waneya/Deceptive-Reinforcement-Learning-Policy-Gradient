@@ -16,7 +16,7 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 
-AGENT_FILE = "agent_drl"       #agent filename - must be in src/agents/
+AGENT_FILE = "agent_drl_policy.py"       #agent filename - must be in src/agents/
 # MAP_FILE  = "empty.map"   	#map filename - must be in maps (sister dir to src)
 # START     = (25, 11)           #coordinates of start location in (col,row) format
 # GOAL      = (28, 43)            #coordinates of goal location in (col,row) format
@@ -42,7 +42,7 @@ POSS_GOALS = [(40, 5)]
 # GOAL      = (8, 5)            #coordinates of goal location in (col,row) format
 # POSS_GOALS = [(40, 5)]
 
-GUI = True                      #True = show GUI, False = run on command line
+GUI = False                      #True = show GUI, False = run on command line
 SPEED = 0.0                     #delay between displayed moves in seconds
 DEADLINE = 100                   #Number of seconds to reach goal
 HEURISTIC = 'octile'            #may be 'euclid' or 'manhattan' or 'octile' (default = 'euclid')
