@@ -12,7 +12,7 @@ EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 PP_DIR = "../drl/PP/"
 BETA = 1
-DECEPTIVE = False
+DECEPTIVE = True
 PRUNE = True
 DEBUG = True
 
@@ -228,14 +228,14 @@ class Agent(object):
         env = policy.getPolicyEnvironment()
 
         bestActionIndex = policy.getHighestProbabilityActionIndex()
-        stochasticActionIndex = policy.getStochasticActionIndex()
-        #actionTakenIndex = bestActionIndex
-        actionTakenIndex = stochasticActionIndex
+
+        actionTakenIndex = bestActionIndex
+
         action = env.actions[actionTakenIndex]
 
         next = (current[0] + action[0], current[1] + action[1])
 
-        # update required policy and env variables
+        # update requires policy and env variables
         # this is because getHighest, getStochastic and
         # all other policy methods work on there variables
         #@TODO Update others if needed
@@ -247,32 +247,42 @@ class Agent(object):
 
         return next
 
-        '''
-        if DEBUG:
-            print "\ncurrent: ", current
-        x, y = current
-        candidates = Counter()
-        for i, a in enumerate(ACTIONS):
-            state_p = (x + a[0], y + a[1])
-            if DEBUG:
-                print "\n", current, "->", state_p, "action", i
-            if not self.lmap.isPassable(state_p, current) or state_p in self.history:
-                continue
-            q = self.policy.qValue(current, i)
-            if DEBUG:
-                print "Q value:", q
-            candidates[state_p] = q
-        move = candidates.most_common()[0][0]
-        if DEBUG:
-            print "candidates:", candidates, "\nmove:", move
-        # update history
-        self.history.add(move)
-        return move
-        '''
+    def stochastic(self, current):
+
+        realPolicy = self.realGoalPolicy
+        fakePolicy = self.fakeGoalsPolicy[0]
+        envReal = realPolicy.env
+        envFake = fakePolicy.env
+
+
+        realStochasticIndex =  realPolicy.getStochasticActionIndex()
+        fakeStochasticIndex =  fakePolicy.getStochasticActionIndex()
+        possibleActions = [realStochasticIndex, fakeStochasticIndex]
+        actionTakenIndex = np.random.choice(possibleActions, 1, p=[0.55,0.45])[0]
+        #actionTakenIndex = stochasticActionIndex
+
+        # all policies have same action space
+        # so no matter whose actions is chosen
+        action = envReal.actions[actionTakenIndex]
+
+        next = (current[0] + action[0], current[1] + action[1])
+
+        # update requires policy and env variables
+        # this is because getHighest, getStochastic and
+        # all other policy methods work on there variables
+        #@TODO Update others if needed
+        envReal.current = next
+        envFake.current = next
+
+
+        #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
+        self.history.add(next)
+        return next
+
 
     def getNext(self, mapref, current, goal, timeremaining=100):
         if DECEPTIVE:
-            move = self.obsEvl(current)
+            move = self.stochastic(current)
         else:
             move = self.honest(current)
         return move
