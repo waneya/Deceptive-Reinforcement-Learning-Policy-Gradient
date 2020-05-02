@@ -124,7 +124,8 @@ class SimController(object):
                 raise SystemExit()
 
         if GIF:
-            self.gif = gif_generator.GifGenerator(self.lmap, self.cfg["START"], self.cfg["GOAL"], self.cfg["POSS_GOALS"])
+            self.gif = gif_generator.GifGenerator(self.lmap, self.cfg["START"], self.cfg["GOAL"],
+                                                  self.cfg["POSS_GOALS"])
 
         if self.cfg.get("GUI"):
             self.initGui()
@@ -404,7 +405,7 @@ class SimController(object):
 
             # Only time first step unless operating in 'realtime' mode. If this is realtime, and the step involved no reasoning (took less than FREE_TIME) do not count its time
             if ((not self.cfg.get("REALTIME") and self.pathtime) or (
-                        (clockend - clockstart) < self.cfg.get("FREE_TIME"))):
+                    (clockend - clockstart) < self.cfg.get("FREE_TIME"))):
                 steptime = 0
             else:
                 steptime = (clockend - clockstart)
@@ -577,7 +578,7 @@ class SimController(object):
 
         else:
             self.processPrefs()
-            #clear poss goals, if any
+            # clear poss goals, if any
             self.gui.clearPossGoals()
             self.cfg["POSS_GOALS"] = None
             # generate random start and goal coordinates
@@ -615,7 +616,7 @@ class SimController(object):
             self.gui.clearGoal()
             self.gui.setGoal(self.cfg["GOAL"])
             self.updateStatus("Goal moved to " + str(self.cfg["GOAL"]))
-            
+
     def setPossGoals(self, goals):
         if self.gui is not None:
             self.gui.clearPossGoals()
@@ -642,7 +643,7 @@ class SimController(object):
                           "start": self.cfg["START"]}
             elif agentfile == "agent_drl":
                 kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
-                        "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name}
+                          "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name}
 
             elif agentfile == "agent_drl_policy":
                 kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
@@ -716,7 +717,7 @@ class SimController(object):
                                   quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 fcsv.writerow(['agent', 'no', 'map', 'startx', 'starty', 'goalx', 'goaly', 'optimum', 'actual', 'steps',
                                'time_taken', 'quality'])
-        # Open existing csv file, process each problem and append results     
+        # Open existing csv file, process each problem and append results
         with open(outfile, 'ab') as csvfile:
             fcsv = csv.writer(csvfile, delimiter=',',
                               quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -727,8 +728,8 @@ class SimController(object):
                 skip, mappath, size1, size2, scol, srow, gcol, grow, optimum = problem
                 logging.info(
                     "========> Running problem {}: from ({},{}) to ({},{}) - Optimal: {}".format(count, scol, srow,
-                                                                                                    gcol, grow,
-                                                                                                    optimum))
+                                                                                                 gcol, grow,
+                                                                                                 optimum))
                 pathname, map = os.path.split(mappath)
                 self.cfg["START"] = (int(scol), int(srow))
                 self.cfg["GOAL"] = (int(gcol), int(grow))

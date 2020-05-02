@@ -1,11 +1,13 @@
 import os.path
 import math
 import policy_gradient
+from policy_gradient import P4Environemnt
+import numpy as np
 from collections import Counter
 
 
 
-EPISODES = 10000
+
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 PP_DIR = "../drl/PP/"
@@ -34,12 +36,18 @@ class Agent(object):
         # load policy parameters for real
         # and fake goals, or train them
         # and save the results.
-        def loadParamOrTrainPolicy(goal):
+        def loadParamOrTrainPolicy(agent, goal):
             goalParaFile = PP_DIR + map_file + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
+
+            # a separte environment file is created
+            # so that associated functions can be
+            # added to it
+            env = P4Environemnt(agent.lmap, agent.startPosition, goal)
+
             # In policy variable below:
             # Can also set alpha and gamma value
+            policy = policy_gradient.LinearPolicy(env)
 
-            policy = policy_gradient.LinearPolicy()
             fileFound = os.path.isfile(goalParaFile)
             if fileFound:
                 if DEBUG:
@@ -49,16 +57,16 @@ class Agent(object):
                 if DEBUG:
                     print "training parameters for goal: ", goal
 
-                policy_gradient.trainPolicy(policy, lmap, start, goal, EPISODES) # policy and training parameters defined in policy_gradient
+                policy_gradient.trainPolicy(policy) # policy and training parameters defined in policy_gradient
                 policy.saveParameters(goalParaFile)
 
             return policy
 
-        self.realGoalPolicy = loadParamOrTrainPolicy(self.real_goal)
+        self.realGoalPolicy = loadParamOrTrainPolicy(self, self.real_goal)
         self.fakeGoalsPolicy = []
         for i, fg in enumerate(fake_goals):
 
-            fakeGoalPolicy = loadParamOrTrainPolicy(fg)
+            fakeGoalPolicy = loadParamOrTrainPolicy(self, fg)
             self.fakeGoalsPolicy.append(fakeGoalPolicy)
 
         # @TODO after this point first work on the TODO of policy_gradient and then work after wards
@@ -81,7 +89,7 @@ class Agent(object):
             nq = fq.qValue(current, m_idx)
             if DEBUG:
                 print "check elimination:", fg, "nq:", nq
-            if nq == EPISODES:
+            if nq == policy_gradient.EPISODES:
                 if DEBUG:
                     print "pass fake goal"
                 self.passed.add(fg)
@@ -215,6 +223,31 @@ class Agent(object):
         return move
 
     def honest(self, current):
+
+        policy = self.realGoalPolicy
+        env = policy.getPolicyEnvironment()
+
+        bestActionIndex = policy.getHighestProbabilityActionIndex()
+        stochasticActionIndex = policy.getStochasticActionIndex()
+        #actionTakenIndex = bestActionIndex
+        actionTakenIndex = stochasticActionIndex
+        action = env.actions[actionTakenIndex]
+
+        next = (current[0] + action[0], current[1] + action[1])
+
+        # update required policy and env variables
+        # this is because getHighest, getStochastic and
+        # all other policy methods work on there variables
+        #@TODO Update others if needed
+        env.current = next # highesy probability method calculates on env.current
+
+
+        #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
+        self.history.add(next)
+
+        return next
+
+        '''
         if DEBUG:
             print "\ncurrent: ", current
         x, y = current
@@ -235,6 +268,7 @@ class Agent(object):
         # update history
         self.history.add(move)
         return move
+        '''
 
     def getNext(self, mapref, current, goal, timeremaining=100):
         if DECEPTIVE:

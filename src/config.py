@@ -42,7 +42,7 @@ POSS_GOALS = [(40, 5)]
 # GOAL      = (8, 5)            #coordinates of goal location in (col,row) format
 # POSS_GOALS = [(40, 5)]
 
-GUI = False                      #True = show GUI, False = run on command line
+GUI = True                      #True = show GUI, False = run on command line
 SPEED = 0.0                     #delay between displayed moves in seconds
 DEADLINE = 100                   #Number of seconds to reach goal
 HEURISTIC = 'octile'            #may be 'euclid' or 'manhattan' or 'octile' (default = 'euclid')

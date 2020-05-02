@@ -12,7 +12,7 @@ EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 Q_DIR = "../drl/qfunc/"
 BETA = 1
-DECEPTIVE = True
+DECEPTIVE = False
 PRUNE = True
 DEBUG = True
 
