@@ -27,7 +27,7 @@ import copy
 import logging
 import gif_generator
 
-GIF = False
+GIF = True
 
 if p4.TIMER == "time":
     from time import time as timer
@@ -134,7 +134,7 @@ class SimController(object):
 
         if GIF:
             start = cfgfile.rfind("/") + 1
-            out_path = "../drl/gifs/" + cfgfile[start:-3]
+            out_path = "../drl/PP/gif/" + cfgfile[start:-3]
             self.gif.finalize(out_path=out_path)
 
     def processMap(self):
