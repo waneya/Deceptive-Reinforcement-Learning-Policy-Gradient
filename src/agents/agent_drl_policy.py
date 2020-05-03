@@ -31,9 +31,6 @@ class Agent(object):
             print self.fake_goals
 
 
-
-
-
         # Section of code below will either
         # load policy parameters for real
         # and fake goals, or train them
@@ -249,7 +246,15 @@ class Agent(object):
 
         return next
 
-    def stochastic(self, current):
+    def stochasticOne(self, current):
+        # idea is to choose stochastic action from both real
+        # and fake policy. As agent become confused
+        # probabilty of besr action is increased at the
+        # expense of fake stochastic. As the confusion reduces
+        # probability of fake stochastic fake is increased.
+        # A limit is imposed on increase in probability
+        # of fake stochastic after confusion in secing if
+
         # illiegitimate steps can be
         # returned based on policy
         # probability
@@ -261,12 +266,6 @@ class Agent(object):
         realStoProb = 0.5
         realBestProb = 0.0
         fakeStoProb = 0.5
-        #selectionProbability = []
-
-        #for policy in range(0, len(self.fakeGoalsPolicy) + 1): # real + fake goals
-            #selectionProbability[policy] = 1/(len(self.fakeGoalsPolicy) + 1)
-
-
         #next = current
 
         simple_prune_increment = 0.02
@@ -281,7 +280,7 @@ class Agent(object):
             possibleActions = [realStochasticIndex, fakeStochasticIndex, realBestIndex]
             #selectionProbability = [realStoProb + simple_prune, fakeStoProb - simple_prune]
             selectionProbability = np.array([realStoProb , fakeStoProb - self.simple_prune, realBestProb + self.simple_prune])
-            #sumOfProbability = np.sum(selectionProbability)
+            sumOfProbability = np.sum(selectionProbability)
 
             actionTakenIndex = np.random.choice(possibleActions, 1, p=selectionProbability)[0]
             #actionTakenIndex = stochasticActionIndex
@@ -301,7 +300,70 @@ class Agent(object):
 
         if SIMPLE_SMOOTH:
             # @TODO also capture behaviour without this
-            if next in self.history and self.simple_prune < (fakeStoProb - 2*simple_prune_increment):
+            if next in self.history and self.simple_prune < (fakeStoProb - simple_prune_increment):
+                self.simple_prune += simple_prune_increment
+
+
+        # update requires policy and env variables
+        # this is because getHighest, getStochastic and
+        # all other policy methods work on there variables
+        #@TODO Update others if needed
+        envReal.current = next
+        envFake.current = next
+
+
+        #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
+        self.history.add(next)
+        return next
+
+    def stochastic2(self, current):
+
+        # all comments of stochastic 1 True,
+        # except that best action is selected rather
+        # than stochastic
+
+        realPolicy = self.realGoalPolicy
+        fakePolicy = self.fakeGoalsPolicy[0]
+        envReal = realPolicy.env
+        envFake = fakePolicy.env
+        realBestProb = 0.5
+        realStoProb = 0.0
+        fakeBestProb = 0.5
+        #next = current
+
+        simple_prune_increment = 0.02
+
+        perform = True # do-while
+
+        while perform: #unless a legimite action is obtained, keep trying
+            realStoIndex = realPolicy.getStochasticActionIndex()
+            realBestIndex =  realPolicy.getHighestProbabilityActionIndex()
+            fakeBestIndex =  fakePolicy.getHighestProbabilityActionIndex()
+
+            possibleActions = [realBestIndex, fakeBestIndex, realStoIndex]
+
+            selectionProbability = np.array([realBestProb , fakeBestProb - self.simple_prune, realStoProb + self.simple_prune])
+
+
+            actionTakenIndex = np.random.choice(possibleActions, 1, p=selectionProbability)[0]
+
+
+            # all policies have same action space
+            # so no matter whose actions is chosen
+            action = envReal.actions[actionTakenIndex]
+
+            next = (current[0] + action[0], current[1] + action[1])
+            status = envReal.getStateStatus(next)
+            perform = not status == 'step' #reslect stochastic action if next state is not legitimate
+            if perform == False and \
+                self.simple_prune > 2*simple_prune_increment and \
+                next not in self.history:
+                self.simple_prune -= simple_prune_increment
+
+
+        if SIMPLE_SMOOTH:
+            # @TODO also capture behaviour without this
+            if next in self.history and self.simple_prune < (fakeBestProb - simple_prune_increment):
                 self.simple_prune += simple_prune_increment
 
 
@@ -320,7 +382,7 @@ class Agent(object):
 
     def getNext(self, mapref, current, goal, timeremaining=100):
         if DECEPTIVE:
-            move = self.stochastic(current)
+            move = self.stochastic2(current)
         else:
             move = self.honest(current)
         return move
@@ -341,4 +403,7 @@ class Agent(object):
         self.closest = [0.0] * len(self.fake_goals)
         self.history = set()
         self.simple_prune = 0
+        self.realGoalPolicy.env.current = self.startPosition
+        for goalPolicy in self.fakeGoalsPolicy:
+            goalPolicy.env.current = self.startPosition
 
