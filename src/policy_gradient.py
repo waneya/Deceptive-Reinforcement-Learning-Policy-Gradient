@@ -9,12 +9,13 @@ import numpy as np
 from scipy.special import softmax
 import math
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-NUMBER_PARAMETERS = 2
+NUMBER_PARAMETERS = 1
 ALPHA = 0.1
 GAMMA = 0.9
 GLOBAL_SEED = 0
-EPISODES = 1000
+EPISODES = 100
 SUMMED_PARAMETER_UPDATE = False
+P4_BASED_LOSS = True
 
 
 class P4Environemnt:
@@ -29,24 +30,41 @@ class P4Environemnt:
 
     def getStateStatus(self, state):
 
-        new_x = state[0]
-        new_y = state[1]
-        mapref = self.lmap
-        # To check the reasonable of action
-        if new_x < 0 or new_x > mapref.info['width'] - 1:
-            status = 'OOB'
 
-        elif new_y < 0 or new_y > mapref.info['height'] - 1:
+        if P4_BASED_LOSS:
+            # @TODO Based on cost calculations in P4
+            current = self.current
+            cost = self.lmap.getCost(state, current)
 
-            status = 'OOB'
+            if cost == float('inf'):
+                status = 'nostep'
+            else:
+                status = 'step'
 
-        elif mapref.matrix[new_x][new_y] != ".":
-            status = 'obstacle'
+            return status
 
         else:
-            status = "step"
 
-        return status
+            new_x = state[0]
+            new_y = state[1]
+            mapref = self.lmap
+
+
+            # To check the reasonable of action
+            if new_x < 0 or new_x > mapref.info['width'] - 1:
+                status = 'OOB'
+
+            elif new_y < 0 or new_y > mapref.info['height'] - 1:
+
+                status = 'OOB'
+
+            elif mapref.matrix[new_x][new_y] != ".":
+                status = 'obstacle'
+
+            else:
+                status = "step"
+
+            return status
 
     def reinitiateEnvironment(self):
         self.current = self.start
@@ -69,7 +87,7 @@ class P4Environemnt:
 
 
             else:
-                featureValueForAction = -500
+                featureValueForAction = -10
 
             return featureValueForAction
 
@@ -96,7 +114,7 @@ class P4Environemnt:
             #.....
 
             #avtionWiseFeatures[action] = [featureOneForEachAction]     #More features can be added in this list
-            features = [featureOneForEachAction, featureOneForEachAction] #More features can be added in this list
+            features = [featureOneForEachAction] #More features can be added in this list
             actionWiseFeaturecVector.append(features)     #More features can be added in this list
 
 
@@ -134,7 +152,8 @@ class LinearPolicy:
         # Action with highest prpbability as per policy
         bestActionIndex = np.argmax(stepActionsProb)
 
-        #bestAction = self.env.actions[bestActionIndex]
+        bestAction = self.env.actions[bestActionIndex]
+        next = (self.env.current[0] + bestAction[0], self.env.current[1] + bestAction[1])
         #bestActionReward = stepActionsRewards[bestActionIndex]
         #bestActionProb = stepActionsProb[bestActionIndex]
 
@@ -176,6 +195,7 @@ class LinearPolicy:
         for actionFeatures in actionWiseFeatures:
             features = np.array(actionFeatures)
             parameters = self.parameters
+            assert len(features) == len(parameters)
             reward = np.dot(features, parameters)
             valueGivenParam.append(reward)
             #featureVector.append(features)
@@ -394,7 +414,7 @@ def run_episode(env, policy,seed):
 
         env.reinitiateEnvironment()
         terminal = env.current == env.goal
-
+        step =0
         while not terminal:
 
             stepActionWiseFeatures = env.getFeatures(env.actions) # returned value is not numpy array
@@ -403,8 +423,8 @@ def run_episode(env, policy,seed):
 
             stepActionsIndex = np.array(range(len(env.actions)))  # Python 2.x list index generation
             stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]  # return array
-
-
+            #step = step+1
+            #print step
 
             # Action with highest prpbability as per policy
             #bestActionIndex = np.argmax(stepActionsProb)

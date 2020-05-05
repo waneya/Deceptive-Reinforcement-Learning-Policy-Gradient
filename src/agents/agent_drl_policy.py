@@ -246,7 +246,7 @@ class Agent(object):
 
         return next
 
-    def stochasticOne(self, current):
+    def stochastic1(self, current):
         # idea is to choose stochastic action from both real
         # and fake policy. As agent become confused
         # probabilty of besr action is increased at the
@@ -293,7 +293,7 @@ class Agent(object):
             status = envReal.getStateStatus(next)
             perform = not status == 'step' #reslect stochastic action if next state is not legitimate
             if perform == False and \
-                self.simple_prune > 2*simple_prune_increment and \
+                self.simple_prune > 4*simple_prune_increment and \
                 next not in self.history:
                 self.simple_prune -= simple_prune_increment
 

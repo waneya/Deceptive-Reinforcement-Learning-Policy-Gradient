@@ -425,8 +425,10 @@ class SimController(object):
 
                 # We now consider every door open. In fact, we are just computing the final path cost, we are not
                 # searching for it. So is reasonable to assume that I have all the keys along the path.
+
                 allkeys = [k for k in self.lmap.key_and_doors.keys()]
                 cost = self.lmap.getCost(current, previous, allkeys)
+
                 # self.pathcost += self.lmap.getCost(current, previous, allkeys)
                 if not self.lmap.isAdjacent(current, previous):
                     cost = float('inf')

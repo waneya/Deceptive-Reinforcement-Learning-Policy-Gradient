@@ -238,7 +238,7 @@ class LogicalMap(object):
         If previous supplied, checks for corner-cutting and provides straight/diagonal 
         cost based on terrain type, read from mixed cost dictionary.
         """
-
+        # @TODO if create problem. Commented due to key-door problem
         if self.isDoor(coord) and not self.hasKeyForDoor(coord, keys):
             return float('inf')
 
