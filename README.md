@@ -1,3 +1,11 @@
+# Application of Policy Gradient on Deceptive Reinforcement Learning:
+
+The work in this repository is an extension of work done by the authors in Deceptive Path Planning and Deceptive Reinorcement Learning as given in following sections. It implements Policy Gradients to study their application in deceptive Reinforcement Learning. Experiments and results will be published when completed.
+
+
+
+# Previous Work by authors
+
 # p4 - Python Path Planning Project (Fork for Goal Recognition and Deception in Path Planning)
 
 
