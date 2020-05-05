@@ -161,7 +161,7 @@ class GR(object):
         print "Results written to " + self.outfile
 
     def getFullPath(self, start, goal, weight):
-        self.obs_agent.reset()
+        self.obs_agent.reinitiateEnvironment()
         # try:
         #     self.obs_agent.setWeight(weight)
         # except:

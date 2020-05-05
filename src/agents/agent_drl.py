@@ -4,15 +4,17 @@ import qFunction
 from collections import Counter
 
 
-DISCOUNT_FACTOR = 1
+ALPHA = 0.2
+GAMMA = 1
+
 TERM_V = 10000.0
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 Q_DIR = "../drl/qfunc/"
 BETA = 1
-DECEPTIVE = True
+DECEPTIVE = False
 PRUNE = True
-DEBUG = False
+DEBUG = True
 
 
 class Agent(object):
@@ -31,7 +33,7 @@ class Agent(object):
         else:
             if DEBUG:
                 print "training q function for", real_goal
-            qFunction.train(self.real_q, lmap, real_goal, TERM_V, DISCOUNT_FACTOR)
+            qFunction.train(self.real_q, lmap, real_goal, TERM_V, GAMMA)
             self.real_q.save(real_q_file)
         self.fake_q = []
         for i, fg in enumerate(fake_goals):
@@ -44,7 +46,7 @@ class Agent(object):
             else:
                 if DEBUG:
                     print "training q function for", fg
-                qFunction.train(fq, lmap, fg, TERM_V, DISCOUNT_FACTOR)
+                qFunction.train(fq, lmap, fg, TERM_V, GAMMA)
                 fq.save(fake_q_file)
             self.fake_q.append(fq)
         self.sum_q_diff = [0.0] * (len(fake_goals) + 1)
