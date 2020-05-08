@@ -8,13 +8,13 @@ ALPHA = 0.2
 GAMMA = 1
 
 TERM_V = 10000.0
-EPSILON = 0.00
+EPSILON = 0.0
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 Q_DIR = "../drl/qfunc/"
 BETA = 1
-DECEPTIVE = False
-PRUNE = True
-DEBUG = True
+DECEPTIVE = True
+PRUNE = False
+DEBUG = False
 
 
 class Agent(object):

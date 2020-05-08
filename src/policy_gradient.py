@@ -13,7 +13,7 @@ NUMBER_PARAMETERS = 1
 ALPHA = 0.1
 GAMMA = 0.9
 GLOBAL_SEED = 0
-EPISODES = 50
+EPISODES = 10
 SUMMED_PARAMETER_UPDATE = False
 P4_BASED_LOSS = True
 
@@ -71,10 +71,10 @@ class P4Environemnt:
 
 
 
-    def getClosenessToGoalFeature(self, action):
+    def getClosenessToGoalFeature(self, state, action):
 
 
-            newState = (self.current[0] + action[0], self.current[1] + action[1])
+            newState = (state[0] + action[0], state[1] + action[1])
             status = self.getStateStatus(newState)
 
             if status == "step":
@@ -101,26 +101,38 @@ class P4Environemnt:
 
         return done, newState
 
+    def getStateActionFeatures(self,state,action):
 
-    def getFeatures(self, actions):
-        #avtionWiseFeatures = {}
+        featureOneForEachAction = self.getClosenessToGoalFeature(state, action)
+        # featureTwo
+        # featureThree
+        # .....
+
+        # avtionWiseFeatures[action] = [featureOneForEachAction]     #More features can be added in this list
+        features = [featureOneForEachAction]  # More features can be added in this list
+
+        return features
+
+    def getStateFeaturesAllActions(self, state, actions):
+        '''
+
+        :param state:
+        :param actions:
+        :return: a 2-D numpy  array containng feature-vector of all actions
+        '''
+
         actionWiseFeaturecVector = []
         features =[]
 
         for action in actions:
-            featureOneForEachAction = self.getClosenessToGoalFeature(action)
-            #featureTwo
-            #featureThree
-            #.....
 
-            #avtionWiseFeatures[action] = [featureOneForEachAction]     #More features can be added in this list
-            features = [featureOneForEachAction] #More features can be added in this list
+            features = self.getStateActionFeatures(state, action) #More features can be added in this list
             actionWiseFeaturecVector.append(features)     #More features can be added in this list
 
 
         #More features can be added
         assert len(features) == NUMBER_PARAMETERS
-        return actionWiseFeaturecVector
+        return np.array(actionWiseFeaturecVector)
 
 
 
@@ -139,15 +151,40 @@ class LinearPolicy:
 
         pass
 
+    def getActionsProbsAndRewards(self, state, actions):
 
-    def getHighestProbabilityActionIndex(self):
+        '''
 
-        stepActionWiseFeatures = self.env.getFeatures(self.env.actions)  # returned value is not numpy array
-        stepActionsProb, stepActionsRewards = \
-            self.getActionsRewardsAndProbabilities(self.env.actions,
-                                                     stepActionWiseFeatures)  # returned values are numpy array
+        :param actions: The available action for this state
+        :param state
+        :return:
+                probs: a 1-D numpy array carrying probabilities of all actions as per softmax of h(s,a,theta)
+                rewards: a 1-D numpy array carrying dot product of h(s,a,theta) and parameter vector
+        '''
+
+        stepActionWiseFeatures = self.env.getStateFeaturesAllActions(state,actions)
+
+        valueGivenParam = []
 
 
+        for actionFeatures in stepActionWiseFeatures:
+            features = actionFeatures
+            parameters = self.parameters
+            assert len(features) == len(parameters)
+            reward = np.dot(features, parameters)
+            valueGivenParam.append(reward)
+            #featureVector.append(features)
+
+        rewards = np.array(valueGivenParam)
+        probs = softmax(rewards) #softmax function from SciPi
+
+
+        return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
+
+
+    def getHighestProbabilityActionIndex(self, state ):
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
 
         # Action with highest prpbability as per policy
         bestActionIndex = np.argmax(stepActionsProb)
@@ -159,54 +196,23 @@ class LinearPolicy:
 
         return bestActionIndex
 
-    def getStochasticActionIndex(self):
+    def getAllActionsProbabilities(self, state):
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+
+        return stepActionsProb
+
+    def getStochasticActionIndex(self, state):
         # Beware stochastic actions
         # can lead to OOB or obstacles
         # with very low probability
-        stepActionWiseFeatures = self.env.getFeatures(self.env.actions)  # returned value is not numpy array
-        # below two returned variables are numpy array
-        stepActionsProb, stepActionsRewards = \
-            self.getActionsRewardsAndProbabilities(self.env.actions,
-                                                     stepActionWiseFeatures)
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
         stepActionsIndex = np.array(range(len(self.env.actions))) #Python 2.x list index generation
 
         stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]# return array
 
 
         return stochasticActionIndex
-
-
-    def getActionsRewardsAndProbabilities(self, actions, actionWiseFeatures):
-        # sample an action in proportion to probabilities
-        '''
-
-        :param actions: The available action for this state
-        :param actionWiseFeatures: a 2-D array containng feature-vector of all actions
-        :return:
-                probs: a 1-D numpy array carrying probabilities of all actions as per softmax of h(s,a,theta)
-                rewards: a 1-D numpy array carrying dot product of h(s,a,theta) and parameter vector
-        '''
-
-        valueGivenParam = []
-        #featureVector = []
-
-        #actionsIndex = np.array([0,1,2,3,4,5,6,7])
-
-        for actionFeatures in actionWiseFeatures:
-            features = np.array(actionFeatures)
-            parameters = self.parameters
-            assert len(features) == len(parameters)
-            reward = np.dot(features, parameters)
-            valueGivenParam.append(reward)
-            #featureVector.append(features)
-
-        rewards = np.array(valueGivenParam)
-        probs = softmax(rewards) #softmax function from SciPi
-        #actionWiseFeatureVector = np.array(featureVector)
-
-        return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
-
-
 
 
     def grad_log_p(self,obs, featuresPerAction, policyProbs, actionsIndex, rewards):
@@ -369,12 +375,14 @@ class LinearPolicy:
         np.save(file_name, self.parameters)
 
     def qValue(self, state, action):
-        x, y = state
-        return self.q_tbl[x][y][action]
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+
+        return stepActionsRewards[action]
 
     def value(self, state):
-        x, y = state
-        return max(self.q_tbl[x][y])
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+        return np.max(stepActionsRewards)
 
     def valueIteration(self, lmap, goal, discount):
         converge = True
@@ -416,10 +424,8 @@ def run_episode(env, policy,seed):
         terminal = env.current == env.goal
         step =0
         while not terminal:
-
-            stepActionWiseFeatures = env.getFeatures(env.actions) # returned value is not numpy array
-            stepActionsProb, stepActionsRewards = \
-                policy.getActionsRewardsAndProbabilities(env.actions, stepActionWiseFeatures) #returned values are numpy array
+            stepActionWiseFeatures = env.getStateFeaturesAllActions(env.current, env.actions)
+            stepActionsProb, stepActionsRewards = policy.getActionsProbsAndRewards(env.current, env.actions)
 
             stepActionsIndex = np.array(range(len(env.actions)))  # Python 2.x list index generation
             stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]  # return array
