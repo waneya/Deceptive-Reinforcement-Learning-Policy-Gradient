@@ -12,9 +12,10 @@ EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 PP_DIR = "../drl/PP/"
 BETA = 1
-DECEPTIVE = True
+DECEPTIVE = False
 SIMPLE_SMOOTH = True
-PRUNE = True
+SINGLE_POLICY = True
+PRUNE = False
 DEBUG = True
 
 
@@ -27,6 +28,7 @@ class Agent(object):
         self.startPosition = start # used for policy training
         self.simple_prune_real = float(0.0)
         self.simple_prune_fake = float(0.0)
+        self.allGoals = [self.real_goal] + self.fake_goals
 
         if DEBUG:
             print self.fake_goals
@@ -36,13 +38,13 @@ class Agent(object):
         # load policy parameters for real
         # and fake goals, or train them
         # and save the results.
-        def loadParamOrTrainPolicy(agent, goal):
-            goalParaFile = PP_DIR + map_file + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
+        def loadParamOrTrainPolicy(agent, goal, allGoals):
+            goalParaFile = PP_DIR + map_file + "param_"+str(policy_gradient.NUMBER_PARAMETERS)+"_goal({:d}.{:d}).npy".format(goal[0], goal[1])
 
             # a separte environment file is created
             # so that associated functions can be
             # added to it
-            env = P4Environemnt(agent.lmap, agent.startPosition, goal)
+            env = P4Environemnt(agent.lmap, agent.startPosition, goal, allGoals)
 
             # In policy variable below:
             # Can also set alpha and gamma value
@@ -62,14 +64,16 @@ class Agent(object):
 
             return policy
 
-        self.realGoalPolicy = loadParamOrTrainPolicy(self, self.real_goal)
-        self.fakeGoalsPolicy = []
-        for i, fg in enumerate(fake_goals):
+        self.realGoalPolicy = loadParamOrTrainPolicy(self, self.real_goal,self.allGoals)
 
-            fakeGoalPolicy = loadParamOrTrainPolicy(self, fg)
-            self.fakeGoalsPolicy.append(fakeGoalPolicy)
+        if not SINGLE_POLICY:
+            self.fakeGoalsPolicy = []
+            for i, fg in enumerate(fake_goals):
 
-        # @TODO after this point first work on the TODO of policy_gradient and then work after wards
+                fakeGoalPolicy = loadParamOrTrainPolicy(self, fg, self.allGoals)
+                self.fakeGoalsPolicy.append(fakeGoalPolicy)
+
+
 
 
         self.sum_q_diff = [0.0] * (len(fake_goals) + 1)
@@ -134,15 +138,15 @@ class Agent(object):
             print "\ncurrent: ", current
         x, y = current
         candidates = list()
-        rqs = self.policy.value(current)
+        rqs = self.realGoalPolicy.value(current)
         for i, a in enumerate(ACTIONS):
             state_p = (x + a[0], y + a[1])
             if DEBUG:
                 print "\n", current, "->", state_p, "action", i
             if not self.lmap.isPassable(state_p, current) or state_p in self.history:
                 continue
-            rnq = self.policy.value(state_p)
-            rq = self.policy.qValue(current, i)
+            rnq = self.realGoalPolicy.value(state_p)
+            rq = self.realGoalPolicy.qValue(current, i)
             if DEBUG:
                 print "next+e: ", rnq * (1 + EPSILON), " qs: ", rqs
             if rnq * (1 + EPSILON) >= rqs:
@@ -205,7 +209,7 @@ class Agent(object):
             # and reconsider
             self.fakeGoalReconsideration(current, a_idx)
         # update sum q_diff
-        rq = self.policy.qValue(current, a_idx)
+        rq = self.realGoalPolicy.qValue(current, a_idx)
         self.sum_q_diff[-1] += rqs - rq
         for fg, fq in enumerate(self.fakeGoalsPolicy):
             qs = fq.value(current)
@@ -348,7 +352,8 @@ class Agent(object):
         policy = self.realGoalPolicy
         env = policy.getPolicyEnvironment()
 
-        bestActionIndex = policy.getHighestProbabilityActionIndex(self)
+        bestActionIndex = policy.getHighestProbabilityActionIndex(current)
+        #bestActionIndex = policy.getStochasticActionIndex(current)
 
         actionTakenIndex = bestActionIndex
 
@@ -370,7 +375,7 @@ class Agent(object):
 
 
 
-    def stochastic2(self, current):
+    def irrationalAgent(self, current):
         # idea is to choose best action from both real
         # and fake policy. As agent become confused
         # probabilty of besr action is increased at the
@@ -479,9 +484,10 @@ class Agent(object):
 
 
     def getNext(self, mapref, current, goal, timeremaining=100):
-        if DECEPTIVE:
-            move = self.stochastic2(current)
+        if DECEPTIVE and not SINGLE_POLICY:
+            #move = self.stochastic2(current)
             #move = self.entropyMaximizingAction(current)
+            move = self.obsEvl(current)
         else:
             move = self.honest(current)
         return move
@@ -504,6 +510,8 @@ class Agent(object):
         self.simple_prune_real = 0
         self.simple_prune_fake = 0
         self.realGoalPolicy.env.current = self.startPosition
-        for goalPolicy in self.fakeGoalsPolicy:
-            goalPolicy.env.current = self.startPosition
+
+        if not SINGLE_POLICY:
+            for goalPolicy in self.fakeGoalsPolicy:
+                goalPolicy.env.current = self.startPosition
 
