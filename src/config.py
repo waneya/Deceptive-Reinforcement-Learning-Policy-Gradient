@@ -19,15 +19,15 @@
 AGENT_FILE = "agent_drl_policy.py"       #agent filename - must be in src/agents/
 #MAP_FILE  = "empty.map"   	#map filename - must be in maps (sister dir to src)
 START     = (25, 11)           #coordinates of start location in (col,row) format
-GOAL      =  (28, 43)   #coordinates of goal location in (col,row) format
-POSS_GOALS = [(10, 5), (8,43),(38,29), (5,29) ]
+GOAL      =   (28,43)  #coordinates of goal location in (col,row) format
+POSS_GOALS = [ (38,29),(8, 43), (5,29) ]
 
 # MAP_FILE  = "arena.map"   	#map filename - must be in maps (sister dir to src)
 # START     = (25, 11)           #coordinates of start location in (col,row) format
 # GOAL      = (28, 43)            #coordinates of goal location in (col,row) format
 # POSS_GOALS = [(10, 5), (39, 29), (8, 43)]
 
-MAP_FILE  = "arena3.map"   	#map filename - must be in maps (sister dir to src)
+MAP_FILE  = "arena.map"   	#map filename - must be in maps (sister dir to src)
 #START     = (20, 41)           #coordinates of start location in (col,row) format
 #GOAL      = (20,5)            #coordinates of goal location in (col,row) format
 #POSS_GOALS = [(8, 20),(40,20)]

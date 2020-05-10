@@ -19,9 +19,9 @@ ALPHA = 0.001
 GAMMA = 0.95
 GLOBAL_SEED = 0
 EPISODES = 10
-SUMMED_PARAMETER_UPDATE = False
+SUMMED_PARAMETER_UPDATE = False # this is not reqyuired, remove its logic
 P4_BASED_LOSS = True
-STEPS_EACH_EPISODE = 2000
+STEPS_EACH_EPISODE = 2000 #Monte Carlo may terminate before reaching goal
 
 
 
@@ -47,7 +47,7 @@ class P4Environemnt:
             if len(self.history) > 1:
                 #previous = self.history[-1] # bad idea
                 previous = self.current
-            cost = self.lmap.getCost(state, previous)
+            cost = self.lmap.getCost(state, previous) # this does not make simulator stuck at obstacles
 
             #current = None
             #cost = self.lmap.getCost(state, current)
@@ -253,7 +253,7 @@ class P4Environemnt:
 
         if len(self.history)>0:
             #nearHistory = self.history[-10:]
-            nearHistory = self.history
+            nearHistory = self.history # this is avoiding haphazard movement but forming balls. Pruning might avoid it
             if newState in nearHistory:
                 featureValue = 100
                 #pass

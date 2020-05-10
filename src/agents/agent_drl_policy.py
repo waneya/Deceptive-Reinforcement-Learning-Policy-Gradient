@@ -17,7 +17,7 @@ SIMPLE_SMOOTH = True
 SINGLE_POLICY = True
 PRUNE = False
 DEBUG = True
-USE_PRE_SET_PARAMETERS = True
+USE_PRE_SET_PARAMETERS = False
 
 
 class Agent(object):
