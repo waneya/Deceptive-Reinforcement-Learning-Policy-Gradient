@@ -9,17 +9,19 @@ import numpy as np
 from scipy.special import softmax
 import math
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS = np.array([1, #closeness
-                            1, #divergence
-                            #-1, # stepsTaken it was effecting training
-                            5]) # reachedGoal
+INITIAL_WEIGHTS = np.array([55 #closeness
+                            ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
+                            ,-10 # -ve means penalize
+                            #,500 # reachedGoal
+                            ])
 NUMBER_PARAMETERS = len(INITIAL_WEIGHTS)
-ALPHA = 0.01
-GAMMA = 0.9
+ALPHA = 0.001
+GAMMA = 0.95
 GLOBAL_SEED = 0
-EPISODES = 15
+EPISODES = 10
 SUMMED_PARAMETER_UPDATE = False
 P4_BASED_LOSS = True
+STEPS_EACH_EPISODE = 2000
 
 
 
@@ -33,14 +35,23 @@ class P4Environemnt:
         self.current = start
         self.actions = ACTIONS
         self.allGoals = allGoals
+        self.history = []
 
-    def getStateStatus(self, state):
+    def getNewStateStatus(self, state):
 
 
         if P4_BASED_LOSS:
             # @TODO Based on cost calculations in P4
-            current = self.current
-            cost = self.lmap.getCost(state, current)
+
+            previous = None
+            if len(self.history) > 1:
+                #previous = self.history[-1] # bad idea
+                previous = self.current
+            cost = self.lmap.getCost(state, previous)
+
+            #current = None
+            #cost = self.lmap.getCost(state, current)
+
 
             if cost == float('inf'):
                 status = 'nostep'
@@ -57,10 +68,10 @@ class P4Environemnt:
 
 
             # To check the reasonable of action
-            if new_x < 0 or new_x > mapref.info['width'] - 1:
+            if new_x < 1 or new_x >= mapref.info['width'] - 1:
                 status = 'OOB'
 
-            elif new_y < 0 or new_y > mapref.info['height'] - 1:
+            elif new_y < 1 or new_y >= mapref.info['height'] - 1:
 
                 status = 'OOB'
 
@@ -108,8 +119,8 @@ class P4Environemnt:
         actionWiseFeaturecVector = np.array(actionWiseFeaturecVector)
 
         # below lines further normalize closeness by subtracting lowest columns
-        feature_one_normalized = actionWiseFeaturecVector[:,FIRST_FEATURE] - np.min(actionWiseFeaturecVector[:, FIRST_FEATURE])
-        actionWiseFeaturecVector[:, FIRST_FEATURE] = feature_one_normalized.T
+        #feature_one_normalized = actionWiseFeaturecVector[:,FIRST_FEATURE] - np.min(actionWiseFeaturecVector[:, FIRST_FEATURE])
+        #actionWiseFeaturecVector[:, FIRST_FEATURE] = feature_one_normalized.T
 
         return actionWiseFeaturecVector
 
@@ -119,13 +130,14 @@ class P4Environemnt:
 
         featureOne = self.getClosenessToGoalFeature(state, act_index)
         featureTwo = self.getDivergenceFromAllGoalsFeature(state, act_index)
-        #featureThree = self.noStepFeature(state, act_index)
+        featureThree = self.stepFeature(state, act_index)
         featureFour = self.goalReachedFeature(state, act_index)
 
-        features = [featureOne,
-                    featureTwo,
-                    #featureThree,
-                    featureFour]
+        features = [featureOne
+                    ,featureTwo
+                    ,featureThree
+                    #,featureFour
+                    ]
 
         return features
 
@@ -148,15 +160,16 @@ class P4Environemnt:
             action = self.actions[act_index]
 
             newState = (state[0] + action[0], state[1] + action[1])
-            status = self.getStateStatus(newState)
+            status = self.getNewStateStatus(newState)
 
             if status == "step":
-                distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
-                distance = math.sqrt(
-                    ((newState[0] - self.goal[0]) ** 2) + ((newState[1] - self.goal[1]) ** 2))
-                normalizedDistance = distance / distanceNormalizer
+
+
+                normalizedDistance = self.normalized_euclidean_distance(newState,self.goal)
                 closenessToGoal = 1 - normalizedDistance
-                featureValueForAction = closenessToGoal
+                featureValueForAction = closenessToGoal  # further normalizing
+
+
             else:
                 featureValueForAction = 0
 
@@ -180,7 +193,7 @@ class P4Environemnt:
 
         action = actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
-        status = self.getStateStatus(newState)
+        status = self.getNewStateStatus(newState)
 
 
         if status == "step":
@@ -191,7 +204,7 @@ class P4Environemnt:
                 actions_closeness_goal = []
                 for action in actions:
                     newState = (state[0] + action[0], state[1] + action[1])
-                    status = self.getStateStatus(newState)
+                    status = self.getNewStateStatus(newState)
                     if status == "step":
                         normlaizedDistance  = self.normalized_euclidean_distance(newState, goal)
                         closeness = 1 -normlaizedDistance
@@ -203,7 +216,7 @@ class P4Environemnt:
                 best_action_index = np.argmax(actions_closeness_goal)
                 best_action_closeness = np.max(actions_closeness_goal)
                 given_action_closeness = actions_closeness_goal[act_index]
-                action_divergence_from_optimal_this_goal =  best_action_closeness - given_action_closeness
+                action_divergence_from_optimal_this_goal =   given_action_closeness - best_action_closeness
                 goal_wise_action_divergence.append(action_divergence_from_optimal_this_goal)
             goal_wise_action_divergence = np.array(goal_wise_action_divergence)
             total_divergence = np.sum(goal_wise_action_divergence)
@@ -215,21 +228,42 @@ class P4Environemnt:
 
         return featureValue
 
-    def noStepFeature(self, state, act_index):
+    def stepFeature(self, state, act_index):
 
 
         action = self.actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
 
 
-        cost = self.lmap.getCost(newState, state)
 
-        if cost == float('inf'):
-            featureValue = 10
+        status = self.getNewStateStatus(newState)
+
+        infinity = float('inf')
+        if status == 'step':
+            cost = 1
         else:
-            featureValue = -1* cost # oost is -ve
+            cost = infinity
 
-        return (featureValue/10.0)
+
+
+        if cost == infinity:
+            featureValue = 100.0
+        else:
+            featureValue = cost/100.0 #
+
+        if len(self.history)>0:
+            #nearHistory = self.history[-10:]
+            nearHistory = self.history
+            if newState in nearHistory:
+                featureValue = 100
+                #pass
+
+        if newState == self.goal:
+            featureValue = -25.0
+        if newState in self.allGoals[1:]: # i.e. fake goals
+            featureValue = 100.0
+
+        return featureValue
 
     def goalReachedFeature(self, state, act_index):
 
@@ -251,7 +285,7 @@ class P4Environemnt:
     def getClosenessToFakeGoalsFeature(self, state, act_index):
         action = self.actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
-        status = self.getStateStatus(newState)
+        status = self.getNewStateStatus(newState)
         number_fake_goals = len(self.allGoals) - 1
         if status == "step":
 
@@ -277,6 +311,7 @@ class P4Environemnt:
 
         newState = (self.current[0] + action[0], self.current[1] + action[1])
         done = newState == self.goal
+        self.history.append(self.current)
         self.current = newState
 
         return done, newState
@@ -418,7 +453,8 @@ class LinearPolicy:
                 for act_index in range (0 , len(step_probs_alStateActions)): # feature and prob values of all actions at this step
                     phi_s_actIndex = step_features_AllStateActions[act_index]
                     prob = step_probs_alStateActions[act_index]
-                    expected += phi_s_actIndex * prob
+                    expectation = phi_s_actIndex * prob
+                    expected += expectation
 
 
 
@@ -517,6 +553,7 @@ class LinearPolicy:
             self.parameters = np.add(self.parameters ,totalUpdate)
 
 
+
     def getPolicyEnvironment(self):
         return self.env
 
@@ -577,19 +614,22 @@ def run_episode(env, policy,seed):
         env.reinitiateEnvironment()
         terminal = env.current == env.goal
         step =0
-        while not terminal: #and step < 5000:
+        while not terminal and step < STEPS_EACH_EPISODE:
             stepActionWiseFeatures = env.getStateFeaturesAllActions(env.current, env.actions)
             stepActionsProb = policy.getPolicyBasedActionProbs(env.current, env.actions)
 
             stepActionsIndex = np.array(range(len(env.actions)))  # Python 2.x list index generation
             stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]  # return array
+            #bestActionIndex = np.argmax(stepActionsProb)
 
             # Pass the action and choose another one
             # if it takes us out of boundry or obstacle
             stochasticAction = env.actions[stochasticActionIndex]
             newState = (env.current[0] + stochasticAction[0], env.current[1] + stochasticAction[1])
-            status = env.getStateStatus(newState)
+            status = env.getNewStateStatus(newState)
             if status !="step":
+                #print "continued"
+                step+=1
                 continue
 
             # get the reward for all state
@@ -601,9 +641,11 @@ def run_episode(env, policy,seed):
                 all_rewards.append(reward)
             all_rewards = np.array(all_rewards)
             all_rewards -= np.min(all_rewards)
-            all_rewards *= 1000
+            all_rewards *= 10
 
             stochasticActionReward = all_rewards[stochasticActionIndex]
+
+
 
             episodeObservations.append(env.current)
 
@@ -620,7 +662,8 @@ def run_episode(env, policy,seed):
             episodeProbs.append(stepProbs)
             episodeActionjWiseFeatures.append(np.array(stepActionWiseFeatures))
             step += 1
-            # print step
+            #print newState
+            #print step
 
         return episodetotalreward, np.array(episodeRewards), np.array(episodeObservations), \
                np.array(epsidoeActions), np.array(episodeProbs), np.array(episodeActionjWiseFeatures), terminal

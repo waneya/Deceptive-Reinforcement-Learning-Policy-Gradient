@@ -17,6 +17,7 @@ SIMPLE_SMOOTH = True
 SINGLE_POLICY = True
 PRUNE = False
 DEBUG = True
+USE_PRE_SET_PARAMETERS = True
 
 
 class Agent(object):
@@ -49,19 +50,27 @@ class Agent(object):
             # In policy variable below:
             # Can also set alpha and gamma value
             policy = policy_gradient.LinearPolicy(env)
+            #policy.parameters = policy_gradient.INITIAL_WEIGHTS
+            #notHasParameter = #len(policy.parameters) < 1
 
             fileFound = os.path.isfile(goalParaFile)
-            if fileFound:
-                if DEBUG:
-                    print "loading parameters for goal: ", goal
-                policy.loadParameters(goalParaFile)
-            else:
-                if DEBUG:
-                    print "training parameters for goal: ", goal
+            if USE_PRE_SET_PARAMETERS:
 
+                print "loading pre-set parameters for goal: ", goal
+                policy.parameters = policy_gradient.INITIAL_WEIGHTS
+
+            elif fileFound :
+
+                policy.loadParameters(goalParaFile)
+                print "loading parameters from filefor goal: ", goal
+
+            else:
+
+                print "training parameters for goal: ", goal
                 policy_gradient.trainPolicy(policy) # policy and training parameters defined in policy_gradient
                 policy.saveParameters(goalParaFile)
 
+            print policy.parameters
             return policy
 
         self.realGoalPolicy = loadParamOrTrainPolicy(self, self.real_goal,self.allGoals)
@@ -304,7 +313,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getStateStatus(next)
+            status = envReal.getNewStateStatus(next)
 
             # Code below will rechoose stage one stochastic
             # action if returned action is not legitimate
@@ -365,7 +374,8 @@ class Agent(object):
         # this is because getHighest, getStochastic and
         # all other policy methods work on there variables
         #@TODO Update others if needed
-        env.current = next # highest probability method calculates on env.current
+        #env.current = next # highest probability method calculates on env.current
+        env.takeAction(actionTakenIndex)
 
 
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
@@ -437,7 +447,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getStateStatus(next)
+            status = envReal.getNewStateStatus(next)
             
             # Code below will rechoose stage one stochastic 
             # action if returned action is not legitimate
@@ -463,7 +473,7 @@ class Agent(object):
             confused = next in self.history
             total_fake_goal_prob = np.sum(stageTwoProbs[1:])
             total_fake_goal_pruning = number_of_fake_goals * simple_prune_fake
-            if confused and (self.simple_prune_real + simple_prune_real) < 1 - simple_prune_real:
+            if confused and (self.simple_prune_real + simple_prune_real) < (1 - simple_prune_real):
                 self.simple_prune_real += simple_prune_real
                 self.simple_prune_fake -= simple_prune_fake
 
