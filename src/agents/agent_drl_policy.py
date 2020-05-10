@@ -347,7 +347,7 @@ class Agent(object):
         policy = self.realGoalPolicy
         env = policy.getPolicyEnvironment()
 
-        bestActionIndex = policy.getHighestProbabilityActionIndex()
+        bestActionIndex = policy.getHighestProbabilityActionIndex(current)
         #bestActionIndex = policy.getStochasticActionIndex(current)
 
         actionTakenIndex = bestActionIndex
@@ -361,7 +361,7 @@ class Agent(object):
         # all other policy methods work on there variables
         #@TODO Update others if needed
         #env.current = next # highest probability method calculates on env.current
-        env.takeAction(actionTakenIndex)
+        env.current = next
 
 
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
@@ -390,20 +390,20 @@ class Agent(object):
         fakePolicy = self.fakeGoalsPolicy[0]
         envReal = realPolicy.env
 
+        default_prob_real = 1.0/number_of_goals
+        default_prob_all_fake = (1.0/number_of_goals) * number_of_fake_goals
+        delta_prob= 0.2 * default_prob_real
 
-        alpha= 0.1
 
 
         # below three values are one time values
         # that will bge added and subtracted
         # from probabilities of real and fake goals
-        simple_prune = alpha/number_of_goals
+        simple_prune = delta_prob/number_of_goals
         simple_prune_fake = simple_prune # this value will be decreased from each fake goal
-
         simple_prune_real = number_of_fake_goals * simple_prune # this value will be added to real goal
 
         stageTwoProbs = np.zeros(number_of_goals)
-
 
 
         for prob in range(0, number_of_goals):
@@ -421,7 +421,7 @@ class Agent(object):
 
             firstStageActions = []
             for policy in allPolicies:
-                bestAction = policy.getHighestProbabilityActionIndex()
+                bestAction = policy.getHighestProbabilityActionIndex(current)
                 firstStageActions.append(bestAction)
 
 
@@ -446,9 +446,11 @@ class Agent(object):
             # goal prob to initials and fake goal
             # to initials
             confused = next in self.history
+            margin = 2* simple_prune_real
+            probability_not_decrease_zero = (self.simple_prune_increment_param - simple_prune_real) > (margin + default_prob_real)
             if not reChoose and \
                 not confused and \
-                (self.simple_prune_increment_param - simple_prune_real) > simple_prune_real: #make sure probability does not decrease below 0
+                probability_not_decrease_zero: #make sure probability does not decrease below 0
                 self.simple_prune_increment_param -= simple_prune_real
                 self.simple_prune_decrement_param += simple_prune_fake
 
@@ -457,9 +459,11 @@ class Agent(object):
         if SIMPLE_SMOOTH:
             # @TODO also capture behaviour without this
             confused = next in self.history
+
+            probability_not_exceed_one = (self.simple_prune_increment_param + default_prob_real + simple_prune_real) < (1 - margin)
             total_fake_goal_prob = np.sum(stageTwoProbs[1:])
             total_fake_goal_pruning = number_of_fake_goals * simple_prune_fake
-            if confused and (self.simple_prune_increment_param + simple_prune_real) < (1 - simple_prune_real):
+            if confused and probability_not_exceed_one:
                 self.simple_prune_increment_param += simple_prune_real
                 self.simple_prune_decrement_param -= simple_prune_fake
 
@@ -474,6 +478,7 @@ class Agent(object):
 
 
 
+
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
         self.history.add(next)
         return next
@@ -481,8 +486,8 @@ class Agent(object):
 
     def getNext(self, mapref, current, goal, timeremaining=100):
         if DECEPTIVE:
-            #move = self.irrationalAgent(current)
-            move = self.entropyMaximizingAction(current)
+            move = self.irrationalAgent(current)
+            #move = self.entropyMaximizingAction(current) # this agent is not working
             #move = self.obsEvl(current)
         else:
             move = self.honest(current)

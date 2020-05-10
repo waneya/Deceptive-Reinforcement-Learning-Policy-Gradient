@@ -71,10 +71,10 @@ class P4Environemnt:
 
 
 
-    def getClosenessToGoalFeature(self, action):
+    def getClosenessToGoalFeature(self, state, action):
 
 
-            newState = (self.current[0] + action[0], self.current[1] + action[1])
+            newState = (state[0] + action[0], state[1] + action[1])
             status = self.getStateStatus(newState)
 
             if status == "step":
@@ -102,25 +102,38 @@ class P4Environemnt:
         return done, newState
 
 
-    def getFeatures(self, actions):
-        #avtionWiseFeatures = {}
+    def getStateActionFeatures(self,state,action):
+
+        featureOneForEachAction = self.getClosenessToGoalFeature(state, action)
+        # featureTwo
+        # featureThree
+        # .....
+
+        # avtionWiseFeatures[action] = [featureOneForEachAction]     #More features can be added in this list
+        features = [featureOneForEachAction]  # More features can be added in this list
+
+        return features
+
+    def getStateFeaturesAllActions(self, state, actions):
+        '''
+
+        :param state:
+        :param actions:
+        :return: a 2-D numpy  array containng feature-vector of all actions
+        '''
+
         actionWiseFeaturecVector = []
         features =[]
 
         for action in actions:
-            featureOneForEachAction = self.getClosenessToGoalFeature(action)
-            #featureTwo
-            #featureThree
-            #.....
 
-            #avtionWiseFeatures[action] = [featureOneForEachAction]     #More features can be added in this list
-            features = [featureOneForEachAction] #More features can be added in this list
+            features = self.getStateActionFeatures(state, action) #More features can be added in this list
             actionWiseFeaturecVector.append(features)     #More features can be added in this list
 
 
         #More features can be added
         assert len(features) == NUMBER_PARAMETERS
-        return actionWiseFeaturecVector
+        return np.array(actionWiseFeaturecVector)
 
 
 
@@ -140,73 +153,7 @@ class LinearPolicy:
         pass
 
 
-    def getHighestProbabilityActionIndex(self):
-
-        stepActionWiseFeatures = self.env.getFeatures(self.env.actions)  # returned value is not numpy array
-        stepActionsProb, stepActionsRewards = \
-            self.getActionsRewardsAndProbabilities(self.env.actions,
-                                                     stepActionWiseFeatures)  # returned values are numpy array
-
-
-
-        # Action with highest prpbability as per policy
-        bestActionIndex = np.argmax(stepActionsProb)
-
-        bestAction = self.env.actions[bestActionIndex]
-        next = (self.env.current[0] + bestAction[0], self.env.current[1] + bestAction[1])
-        #bestActionReward = stepActionsRewards[bestActionIndex]
-        #bestActionProb = stepActionsProb[bestActionIndex]
-
-        return bestActionIndex
-
-    def getStochasticActionIndex(self):
-        # Beware stochastic actions
-        # can lead to OOB or obstacles
-        # with very low probability
-        stepActionWiseFeatures = self.env.getFeatures(self.env.actions)  # returned value is not numpy array
-        # below two returned variables are numpy array
-        stepActionsProb, stepActionsRewards = \
-            self.getActionsRewardsAndProbabilities(self.env.actions,
-                                                     stepActionWiseFeatures)
-        stepActionsIndex = np.array(range(len(self.env.actions))) #Python 2.x list index generation
-
-        stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]# return array
-
-
-        return stochasticActionIndex
-
-
-    def getActionsRewardsAndProbabilities(self, actions, actionWiseFeatures):
-        # sample an action in proportion to probabilities
-        '''
-
-        :param actions: The available action for this state
-        :param actionWiseFeatures: a 2-D array containng feature-vector of all actions
-        :return:
-                probs: a 1-D numpy array carrying probabilities of all actions as per softmax of h(s,a,theta)
-                rewards: a 1-D numpy array carrying dot product of h(s,a,theta) and parameter vector
-        '''
-
-        valueGivenParam = []
-        #featureVector = []
-
-        #actionsIndex = np.array([0,1,2,3,4,5,6,7])
-
-        for actionFeatures in actionWiseFeatures:
-            features = np.array(actionFeatures)
-            parameters = self.parameters
-            assert len(features) == len(parameters)
-            reward = np.dot(features, parameters)
-            valueGivenParam.append(reward)
-            #featureVector.append(features)
-
-        rewards = np.array(valueGivenParam)
-        probs = softmax(rewards) #softmax function from SciPi
-        #actionWiseFeatureVector = np.array(featureVector)
-
-        return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
-
-    def getActionsProbsAndRewards(self, actions):
+    def getActionsProbsAndRewards(self, state, actions):
 
         '''
 
@@ -217,7 +164,7 @@ class LinearPolicy:
                 rewards: a 1-D numpy array carrying dot product of h(s,a,theta) and parameter vector
         '''
 
-        stepActionWiseFeatures = self.env.getFeatures(actions)
+        stepActionWiseFeatures = self.env.getStateFeaturesAllActions(state, actions)
 
         valueGivenParam = []
 
@@ -236,12 +183,68 @@ class LinearPolicy:
 
         return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
 
-    def getAllActionsProbabilities(self ):
+    def getHighestProbabilityActionIndex(self, state ):
 
-        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(self.env.actions)
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+
+        # Action with highest prpbability as per policy
+        bestActionIndex = np.argmax(stepActionsProb)
+
+        bestAction = self.env.actions[bestActionIndex]
+        next = (self.env.current[0] + bestAction[0], self.env.current[1] + bestAction[1])
+        #bestActionReward = stepActionsRewards[bestActionIndex]
+        #bestActionProb = stepActionsProb[bestActionIndex]
+
+        return bestActionIndex
+
+
+    def getAllActionsProbabilities(self, state ):
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
 
         return stepActionsProb
 
+    def getStochasticActionIndex(self, state):
+        # Beware stochastic actions
+        # can lead to OOB or obstacles
+        # with very low probability
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+        stepActionsIndex = np.array(range(len(self.env.actions))) #Python 2.x list index generation
+
+        stochasticActionIndex = np.random.choice(stepActionsIndex, 1, p=stepActionsProb)[0]# return array
+
+
+        return stochasticActionIndex
+
+
+    def qValue(self, state, action):
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+
+        return stepActionsRewards[action]
+
+    def value(self, state):
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(state, self.env.actions)
+        return np.max(stepActionsRewards)
+
+    def valueIteration(self, lmap, goal, discount):
+        converge = True
+        for x in range(self.width):
+            for y in range(self.height):
+                state = (x, y)
+                if state == goal:
+                    continue
+                for z, a in enumerate(ACTIONS):
+                    old_q = self.q_tbl[x][y][z]
+                    state_p = (x + a[0], y + a[1])
+                    cost = lmap.getCost(state_p, previous=state)
+                    if cost < float('inf'):
+                        q = discount * self.value(state_p) - cost
+                        if q > old_q:
+                            converge = False
+                            self.q_tbl[x][y][z] = q
+
+        return converge
 
 
     def grad_log_p(self,obs, featuresPerAction, policyProbs, actionsIndex, rewards):
@@ -410,32 +413,7 @@ class LinearPolicy:
     def saveParameters(self, file_name):
         np.save(file_name, self.parameters)
 
-    def qValue(self, state, action):
-        x, y = state
-        return self.q_tbl[x][y][action]
 
-    def value(self, state):
-        x, y = state
-        return max(self.q_tbl[x][y])
-
-    def valueIteration(self, lmap, goal, discount):
-        converge = True
-        for x in range(self.width):
-            for y in range(self.height):
-                state = (x, y)
-                if state == goal:
-                    continue
-                for z, a in enumerate(ACTIONS):
-                    old_q = self.q_tbl[x][y][z]
-                    state_p = (x + a[0], y + a[1])
-                    cost = lmap.getCost(state_p, previous=state)
-                    if cost < float('inf'):
-                        q = discount * self.value(state_p) - cost
-                        if q > old_q:
-                            converge = False
-                            self.q_tbl[x][y][z] = q
-
-        return converge
 
 def run_episode(env, policy,seed):
 
