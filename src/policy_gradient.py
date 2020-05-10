@@ -13,7 +13,7 @@ NUMBER_PARAMETERS = 1
 ALPHA = 0.1
 GAMMA = 0.9
 GLOBAL_SEED = 0
-EPISODES = 100
+EPISODES = 10
 SUMMED_PARAMETER_UPDATE = False
 P4_BASED_LOSS = True
 
@@ -206,6 +206,41 @@ class LinearPolicy:
 
         return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
 
+    def getActionsProbsAndRewards(self, actions):
+
+        '''
+
+        :param actions: The available action for this state
+        :param state
+        :return:
+                probs: a 1-D numpy array carrying probabilities of all actions as per softmax of h(s,a,theta)
+                rewards: a 1-D numpy array carrying dot product of h(s,a,theta) and parameter vector
+        '''
+
+        stepActionWiseFeatures = self.env.getFeatures(actions)
+
+        valueGivenParam = []
+
+
+        for actionFeatures in stepActionWiseFeatures:
+            features = actionFeatures
+            parameters = self.parameters
+            assert len(features) == len(parameters)
+            reward = np.dot(features, parameters)
+            valueGivenParam.append(reward)
+            #featureVector.append(features)
+
+        rewards = np.array(valueGivenParam)
+        probs = softmax(rewards) #softmax function from SciPi
+
+
+        return probs,rewards  #,actionsIndex# , actionWiseFeatureVector
+
+    def getAllActionsProbabilities(self ):
+
+        stepActionsProb, stepActionsRewards = self.getActionsProbsAndRewards(self.env.actions)
+
+        return stepActionsProb
 
 
 
@@ -301,6 +336,13 @@ class LinearPolicy:
                                     feature vector as 1-D numpy array for each step of episode
         :return:
         '''
+
+        # in this code the training is different from
+        # single_policy for all goals training.
+        # Specially the reward update. This is because
+        # with only one reward which is closeness, ni differenc is made.
+        # look ar other branch of single_policy for updated training.
+
 
         if SUMMED_PARAMETER_UPDATE:
             # calculate gradients for each action over all observations

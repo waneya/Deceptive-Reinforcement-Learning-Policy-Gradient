@@ -14,8 +14,9 @@ PP_DIR = "../drl/PP/"
 BETA = 1
 DECEPTIVE = True
 SIMPLE_SMOOTH = True
-PRUNE = True
+PRUNE = False
 DEBUG = True
+
 
 
 class Agent(object):
@@ -25,7 +26,9 @@ class Agent(object):
         self.real_goal = real_goal
         self.fake_goals = fake_goals
         self.startPosition = start # used for policy training
-        self.simple_prune = 0
+        self.simple_prune_increment_param = float(0.0)
+        self.simple_prune_decrement_param = float(0.0)
+        self.allGoals = [self.real_goal] + self.fake_goals
 
         if DEBUG:
             print self.fake_goals
@@ -133,15 +136,15 @@ class Agent(object):
             print "\ncurrent: ", current
         x, y = current
         candidates = list()
-        rqs = self.policy.value(current)
+        rqs = self.realGoalPolicy.value(current)
         for i, a in enumerate(ACTIONS):
             state_p = (x + a[0], y + a[1])
             if DEBUG:
                 print "\n", current, "->", state_p, "action", i
             if not self.lmap.isPassable(state_p, current) or state_p in self.history:
                 continue
-            rnq = self.policy.value(state_p)
-            rq = self.policy.qValue(current, i)
+            rnq = self.realGoalPolicy.value(state_p)
+            rq = self.realGoalPolicy.qValue(current, i)
             if DEBUG:
                 print "next+e: ", rnq * (1 + EPSILON), " qs: ", rqs
             if rnq * (1 + EPSILON) >= rqs:
@@ -204,7 +207,7 @@ class Agent(object):
             # and reconsider
             self.fakeGoalReconsideration(current, a_idx)
         # update sum q_diff
-        rq = self.policy.qValue(current, a_idx)
+        rq = self.realGoalPolicy.qValue(current, a_idx)
         self.sum_q_diff[-1] += rqs - rq
         for fg, fq in enumerate(self.fakeGoalsPolicy):
             qs = fq.value(current)
@@ -221,12 +224,131 @@ class Agent(object):
         self.history.add(move)
         return move
 
+    def entropyMaximizingAction(self, current):
+
+        # here we consider fake as best action for real goal
+        # and real as the entropy maximizing action
+
+        allPolicies = np.array([self.realGoalPolicy] + self.fakeGoalsPolicy)
+
+        allGoals = np.array([self.real_goal] + self.fake_goals)
+        number_of_goals = 2 # 1 real and 1 least entropy
+        number_of_fake_goals = number_of_goals - 1
+
+        realPolicy = self.realGoalPolicy
+
+        envReal = realPolicy.env
+
+        alpha = 0.15
+
+        # below three values are one time values
+        # that will bge added and subtracted
+        # from probabilities
+        simple_prune = alpha / number_of_goals
+        simple_prune_entropy = simple_prune  # this value will be decreased from max_entropy
+
+        simple_prune_best = number_of_fake_goals * simple_prune  # this value will be added to real goal
+        entropy_action_prob = 1.0
+        best_actionprob = 0.0
+        stageTwoProbs = [entropy_action_prob ,best_actionprob]
+
+        stageTwoProbs[0] += self.simple_prune_decrement_param
+
+        stageTwoProbs[1] += self.simple_prune_increment_param  # add because 2nd term is -ve
+
+        #assert alpha < stageTwoProbs[1]
+
+        reChoose = True  # do-while
+
+        while reChoose:  # unless a legimite action is obtained, keep trying
+
+            # A 2-D array with actions in columns
+            # and policy wise probs in rows
+            policy_wise_actions_probs = []
+            for policy in allPolicies:
+                 actions_probs = policy.getAllActionsProbabilities()
+                 policy_wise_actions_probs.append(actions_probs)
+
+            # A 2-D numpy array with action in rows
+            # and policy wise probs in columns
+            actions_wise_policy_probs = np.array(policy_wise_actions_probs).T
+
+            action_entropies = []
+            for action_probs in actions_wise_policy_probs:
+                information_gain = 0.0
+                for prob in action_probs:
+                    information_gain += prob * math.log(prob, 2)
+                entropy = -1.0 * information_gain
+                action_entropies.append(entropy)
+
+            # A 1-D numpy array having entropies
+            # of all actions
+            action_entropies = np.array(action_entropies)
+
+            max_entropy_index = np.argmax(action_entropies)
+            #real_best_index = np.argpartition(action_entropies, -2)[-2] # 2nd largest entropy
+            real_best_index = realPolicy.getHighestProbabilityActionIndex()
+
+
+            firstStageActions = [max_entropy_index, real_best_index]
+
+            #actionTakenIndex = np.argmax(action_entropies)
+
+            actionTakenIndex = np.random.choice(firstStageActions, 1, p=stageTwoProbs)[0]
+
+            # all policies have same action space
+            # so no matter whose actions is chosen
+            action = envReal.actions[actionTakenIndex]
+
+            next = (current[0] + action[0], current[1] + action[1])
+            status = envReal.getStateStatus(next)
+
+            # Code below will rechoose stage one stochastic
+            # action if returned action is not legitimate
+            reChoose = not status == 'step'
+
+            # If confusion of the agents end
+            # (i.e. it does not keep
+            # moving around observed states)
+            # make it deceptive by decresing real
+            # goal prob to initials and fake goal
+            # to initials
+            confused = next in self.history
+            if not reChoose and \
+                    not confused and \
+                    (self.simple_prune_increment_param - simple_prune_best) > 0:  # make sure probability does not increase above 1
+                self.simple_prune_increment_param -= simple_prune_best
+                self.simple_prune_decrement_param += simple_prune_entropy
+
+        if SIMPLE_SMOOTH:
+            # @TODO also capture behaviour without this
+            confused = next in self.history
+            total_fake_goal_prob = np.sum(stageTwoProbs[1:])
+            total_fake_goal_pruning = number_of_fake_goals * simple_prune_entropy
+            if confused and \
+                    (self.simple_prune_increment_param + simple_prune_best) < 1: #(total_fake_goal_prob - total_fake_goal_pruning):
+                self.simple_prune_increment_param += float(simple_prune_best)
+                self.simple_prune_decrement_param -= float(simple_prune_entropy)
+
+        # update requires policy and env variables
+        # this is because getHighest, getStochastic and
+        # all real_best_index policy methods work on there variables
+        # @TODO Update others if needed
+        for policy in allPolicies:
+            env = policy.getPolicyEnvironment()
+            env.current = next
+
+        # terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
+        self.history.add(next)
+        return next
+
     def honest(self, current):
 
         policy = self.realGoalPolicy
         env = policy.getPolicyEnvironment()
 
         bestActionIndex = policy.getHighestProbabilityActionIndex()
+        #bestActionIndex = policy.getStochasticActionIndex(current)
 
         actionTakenIndex = bestActionIndex
 
@@ -238,7 +360,8 @@ class Agent(object):
         # this is because getHighest, getStochastic and
         # all other policy methods work on there variables
         #@TODO Update others if needed
-        env.current = next # highesy probability method calculates on env.current
+        #env.current = next # highest probability method calculates on env.current
+        env.takeAction(actionTakenIndex)
 
 
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
@@ -246,106 +369,63 @@ class Agent(object):
 
         return next
 
-    def stochastic1(self, current):
-        # idea is to choose stochastic action from both real
+
+
+    def irrationalAgent(self, current):
+        # idea is to choose best action from both real
         # and fake policy. As agent become confused
         # probabilty of besr action is increased at the
         # expense of fake stochastic. As the confusion reduces
         # probability of fake stochastic fake is increased.
         # A limit is imposed on increase in probability
         # of fake stochastic after confusion in secing if
+        allPolicies = np.array([self.realGoalPolicy] + self.fakeGoalsPolicy)
 
-        # illiegitimate steps can be
-        # returned based on policy
-        # probability
+        allGoals = np.array([self.real_goal] + self.fake_goals)
+        number_of_goals = len(allGoals)
+        number_of_fake_goals = number_of_goals - 1
+
 
         realPolicy = self.realGoalPolicy
         fakePolicy = self.fakeGoalsPolicy[0]
         envReal = realPolicy.env
-        envFake = fakePolicy.env
-        realStoProb = 0.5
-        realBestProb = 0.0
-        fakeStoProb = 0.5
-        #next = current
-
-        simple_prune_increment = 0.02
-
-        perform = True # do-while
-
-        while perform: #unless a legimite action is obtained, keep trying
-            realBestIndex = realPolicy.getHighestProbabilityActionIndex()
-            realStochasticIndex =  realPolicy.getStochasticActionIndex()
-            fakeStochasticIndex =  fakePolicy.getStochasticActionIndex()
-
-            possibleActions = [realStochasticIndex, fakeStochasticIndex, realBestIndex]
-            #selectionProbability = [realStoProb + simple_prune, fakeStoProb - simple_prune]
-            selectionProbability = np.array([realStoProb , fakeStoProb - self.simple_prune, realBestProb + self.simple_prune])
-            sumOfProbability = np.sum(selectionProbability)
-
-            actionTakenIndex = np.random.choice(possibleActions, 1, p=selectionProbability)[0]
-            #actionTakenIndex = stochasticActionIndex
-
-            # all policies have same action space
-            # so no matter whose actions is chosen
-            action = envReal.actions[actionTakenIndex]
-
-            next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getStateStatus(next)
-            perform = not status == 'step' #reslect stochastic action if next state is not legitimate
-            if perform == False and \
-                self.simple_prune > 4*simple_prune_increment and \
-                next not in self.history:
-                self.simple_prune -= simple_prune_increment
 
 
-        if SIMPLE_SMOOTH:
-            # @TODO also capture behaviour without this
-            if next in self.history and self.simple_prune < (fakeStoProb - simple_prune_increment):
-                self.simple_prune += simple_prune_increment
+        alpha= 0.1
 
 
-        # update requires policy and env variables
-        # this is because getHighest, getStochastic and
-        # all other policy methods work on there variables
-        #@TODO Update others if needed
-        envReal.current = next
-        envFake.current = next
+        # below three values are one time values
+        # that will bge added and subtracted
+        # from probabilities of real and fake goals
+        simple_prune = alpha/number_of_goals
+        simple_prune_fake = simple_prune # this value will be decreased from each fake goal
+
+        simple_prune_real = number_of_fake_goals * simple_prune # this value will be added to real goal
+
+        stageTwoProbs = np.zeros(number_of_goals)
 
 
-        #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
-        self.history.add(next)
-        return next
 
-    def stochastic2(self, current):
-
-        # all comments of stochastic 1 True,
-        # except that best action is selected rather
-        # than stochastic
-
-        realPolicy = self.realGoalPolicy
-        fakePolicy = self.fakeGoalsPolicy[0]
-        envReal = realPolicy.env
-        envFake = fakePolicy.env
-        realBestProb = 0.5
-        realStoProb = 0.0
-        fakeBestProb = 0.5
-        #next = current
-
-        simple_prune_increment = 0.02
-
-        perform = True # do-while
-
-        while perform: #unless a legimite action is obtained, keep trying
-            realStoIndex = realPolicy.getStochasticActionIndex()
-            realBestIndex =  realPolicy.getHighestProbabilityActionIndex()
-            fakeBestIndex =  fakePolicy.getHighestProbabilityActionIndex()
-
-            possibleActions = [realBestIndex, fakeBestIndex, realStoIndex]
-
-            selectionProbability = np.array([realBestProb , fakeBestProb - self.simple_prune, realStoProb + self.simple_prune])
+        for prob in range(0, number_of_goals):
+            stageTwoProbs[prob] = 1.0 / number_of_goals
+            if prob == 0:  # Real Goal
+                stageTwoProbs[prob] += self.simple_prune_increment_param
+            else:  # for fake goals
+                stageTwoProbs[prob] += self.simple_prune_decrement_param  # add because 2nd term is -ve
 
 
-            actionTakenIndex = np.random.choice(possibleActions, 1, p=selectionProbability)[0]
+
+        reChoose = True # do-while
+
+        while reChoose: #unless a legimite action is obtained, keep trying
+
+            firstStageActions = []
+            for policy in allPolicies:
+                bestAction = policy.getHighestProbabilityActionIndex()
+                firstStageActions.append(bestAction)
+
+
+            actionTakenIndex = np.random.choice(firstStageActions, 1, p=stageTwoProbs)[0]
 
 
             # all policies have same action space
@@ -354,25 +434,44 @@ class Agent(object):
 
             next = (current[0] + action[0], current[1] + action[1])
             status = envReal.getStateStatus(next)
-            perform = not status == 'step' #reslect stochastic action if next state is not legitimate
-            if perform == False and \
-                self.simple_prune > 2*simple_prune_increment and \
-                next not in self.history:
-                self.simple_prune -= simple_prune_increment
+
+            # Code below will rechoose stage one stochastic
+            # action if returned action is not legitimate
+            reChoose = not status == 'step'
+
+            # If confusion of the agents end
+            # (i.e. it does not keep
+            # moving around observed states)
+            # make it deceptive by decresing real
+            # goal prob to initials and fake goal
+            # to initials
+            confused = next in self.history
+            if not reChoose and \
+                not confused and \
+                (self.simple_prune_increment_param - simple_prune_real) > simple_prune_real: #make sure probability does not decrease below 0
+                self.simple_prune_increment_param -= simple_prune_real
+                self.simple_prune_decrement_param += simple_prune_fake
+
 
 
         if SIMPLE_SMOOTH:
             # @TODO also capture behaviour without this
-            if next in self.history and self.simple_prune < (fakeBestProb - simple_prune_increment):
-                self.simple_prune += simple_prune_increment
+            confused = next in self.history
+            total_fake_goal_prob = np.sum(stageTwoProbs[1:])
+            total_fake_goal_pruning = number_of_fake_goals * simple_prune_fake
+            if confused and (self.simple_prune_increment_param + simple_prune_real) < (1 - simple_prune_real):
+                self.simple_prune_increment_param += simple_prune_real
+                self.simple_prune_decrement_param -= simple_prune_fake
 
 
         # update requires policy and env variables
         # this is because getHighest, getStochastic and
         # all other policy methods work on there variables
         #@TODO Update others if needed
-        envReal.current = next
-        envFake.current = next
+        for policy in allPolicies:
+            env = policy.getPolicyEnvironment()
+            env.current = next
+
 
 
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
@@ -382,7 +481,9 @@ class Agent(object):
 
     def getNext(self, mapref, current, goal, timeremaining=100):
         if DECEPTIVE:
-            move = self.stochastic2(current)
+            #move = self.irrationalAgent(current)
+            move = self.entropyMaximizingAction(current)
+            #move = self.obsEvl(current)
         else:
             move = self.honest(current)
         return move
@@ -402,8 +503,11 @@ class Agent(object):
         self.passed = set()
         self.closest = [0.0] * len(self.fake_goals)
         self.history = set()
-        self.simple_prune = 0
+        self.simple_prune_increment_param = 0
+        self.simple_prune_decrement_param = 0
         self.realGoalPolicy.env.current = self.startPosition
+
+
         for goalPolicy in self.fakeGoalsPolicy:
             goalPolicy.env.current = self.startPosition
 
