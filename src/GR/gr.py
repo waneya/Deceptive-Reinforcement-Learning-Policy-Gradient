@@ -1,6 +1,7 @@
 import csv
 import imp
 import os
+import os.path
 import random
 from time import clock as timer
 
@@ -31,12 +32,13 @@ RANDOM = 1
 
 IRRATIONAL = True
 
-OBS_AGENT = "agent_drl"  # generates observations
+OBS_AGENT = "agent_drl_policy"  # generates observations
 # OBS_AGENT = "agent_rta"
 # GR_AGENT = "gr_agent_ramirez"
 GR_AGENT = "gr_agent"  # calculates probabilities
-
-MAP_PATH = "../maps/drl/"
+ROOT = "G:\\Semester 1 2020\\COMP90055\\DRL-Policy-Gradient"
+AGENTS_DIRECTORY = os.path.join(ROOT,'src','agents')
+MAP_PATH = os.path.join(ROOT,'maps','drl')
 MAX_GOALS = 6
 TIME_OUT = 180  # 3 minutes
 
@@ -57,7 +59,7 @@ class GR(object):
 
         # initialise GR agents
         try:
-            temp = imp.load_source(GR_AGENT, './agents/' + GR_AGENT + '.py')
+            temp = imp.load_source(GR_AGENT, os.path.join(AGENTS_DIRECTORY,GR_AGENT + '.py'))
             self.gr_agent = temp.GrAgent()
         except Exception, e:
             print "Expecting agent name only. "
@@ -108,13 +110,13 @@ class GR(object):
                 realgoal = 0
 
                 if not self.map == map:
-                    self.model = LogicalMap(MAP_PATH + map + '.map')
+                    self.model = LogicalMap(os.path.join(MAP_PATH,map + '.map'))
                     # self.model.setDiagonal(False)
                     self.map = map
 
                 # initialize planning agent
                 kwargs = {}
-                agentmod = imp.load_source(OBS_AGENT, './agents/' + OBS_AGENT + '.py')
+                agentmod = imp.load_source(OBS_AGENT, os.path.join(AGENTS_DIRECTORY,OBS_AGENT + '.py'))
                 if OBS_AGENT == "agent_rm":
                     kwargs = {"lmap": self.model, "real_goal": real_goal,
                               "fake_goals": fake_goals, "map_file": self.map,
@@ -122,6 +124,10 @@ class GR(object):
                 elif OBS_AGENT == "agent_drl":
                     kwargs = {"lmap": self.model, "real_goal": real_goal,
                               "fake_goals": fake_goals, "map_file": self.map}
+
+                elif OBS_AGENT == "agent_drl_policy":
+                    kwargs = {"lmap": self.model, "real_goal": real_goal,
+                              "fake_goals": fake_goals, "map_file": self.map, "start": start}
                 self.obs_agent = agentmod.Agent(**kwargs)
 
                 # generate paths, get probabilities * 6 and write to csv
@@ -161,7 +167,7 @@ class GR(object):
         print "Results written to " + self.outfile
 
     def getFullPath(self, start, goal, weight):
-        self.obs_agent.reinitiateEnvironment()
+        self.obs_agent.reset()
         # try:
         #     self.obs_agent.setWeight(weight)
         # except:
@@ -238,6 +244,11 @@ class GoalObj(object):
 
 
 if __name__ == '__main__':
-    recog = GR("../drl/computational/drl.GR", "../drl/computational/drl.csv")
+
+
+    first_path = os.path.join(ROOT,'drl', 'computational', 'drl.GR')
+    store_path = os.path.join(ROOT,'drl', 'computational', 'drl.csv')
+    #file_path = "../computational/"
+    recog = GR(first_path , store_path )
     # recog.runBatch(GREEDY, SPARSE, PREFIX)
     recog.runBatch()

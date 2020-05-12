@@ -10,9 +10,11 @@ from collections import Counter
 
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-PP_DIR = "../drl/PP/"
+ROOT = "G:\\Semester 1 2020\\COMP90055\\DRL-Policy-Gradient"
+PP_DIR = os.path.join(ROOT,'drl','PP')
+
 BETA = 1
-DECEPTIVE = True
+DECEPTIVE = False
 SIMPLE_SMOOTH = True
 PRUNE = False
 DEBUG = True
@@ -39,12 +41,12 @@ class Agent(object):
         # and fake goals, or train them
         # and save the results.
         def loadParamOrTrainPolicy(agent, goal):
-            goalParaFile = PP_DIR + map_file + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
+            goalParaFile =  os.path.join(PP_DIR,map_file + "_goal({:d}.{:d}).npy".format(goal[0], goal[1]))
 
             # a separte environment file is created
             # so that associated functions can be
             # added to it
-            env = P4Environemnt(agent.lmap, agent.startPosition, goal)
+            env = P4Environemnt(agent.lmap, agent.startPosition, goal, [self.real_goal] + self.fake_goals)
 
             # In policy variable below:
             # Can also set alpha and gamma value
@@ -301,7 +303,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getStateStatus(next)
+            status = envReal.getNewStateStatus(next)
 
             # Code below will rechoose stage one stochastic
             # action if returned action is not legitimate
@@ -346,7 +348,7 @@ class Agent(object):
 
         policy = self.realGoalPolicy
         env = policy.getPolicyEnvironment()
-
+        env.current = current
         bestActionIndex = policy.getHighestProbabilityActionIndex(current)
         #bestActionIndex = policy.getStochasticActionIndex(current)
 
@@ -433,7 +435,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getStateStatus(next)
+            status = envReal.getNewStateStatus(next)
 
             # Code below will rechoose stage one stochastic
             # action if returned action is not legitimate

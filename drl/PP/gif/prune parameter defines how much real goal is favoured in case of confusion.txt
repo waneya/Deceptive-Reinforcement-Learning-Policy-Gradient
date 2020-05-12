@@ -1,0 +1,5 @@
+1: real goal = 0.6, fake foal = 0.4; actions chosen stochastically
+2: if agent is confusing more and more in 1, favour real goal by increasing probability further.
+3. equal selection changes. In case of confusion favour real goal
+4. equal probability for all. In case of confusion favour real goal, when confusion removes becomes deceptive; controlled by pruning parameter
+5. equal probability for all. In case of confusion favour real goal, when confusion removes becomes deceptive, limit of favouring real increases by doubling pruning parameter
