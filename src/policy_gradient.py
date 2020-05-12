@@ -160,6 +160,22 @@ class P4Environemnt:
             newState = (state[0] + action[0], state[1] + action[1])
             status, cost = self.getNewStateStatus(newState)
 
+            if newState ==self.goal:
+                return 1
+
+
+            if status =='step':
+                optCost = self.lmap.optCost(self.goal, newState)
+                if optCost is not None:
+                    distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
+                    return (1.0-optCost/distanceNormalizer)
+                else:
+                    return 0
+            else:
+                return 0
+
+            return optCost
+            '''
             if status == "step":
 
 
@@ -172,7 +188,7 @@ class P4Environemnt:
                 featureValueForAction = 0
 
             return featureValueForAction
-
+            '''
 
 
     def getDivergenceFromAllGoalsFeature(self, state, act_index):
