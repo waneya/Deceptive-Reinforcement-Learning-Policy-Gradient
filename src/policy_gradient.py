@@ -56,8 +56,8 @@ class P4Environemnt:
             else:
                 status = 'step'
 
-            return status
-
+            return status, cost
+        '''
         else:
 
             new_x = state[0]
@@ -80,7 +80,7 @@ class P4Environemnt:
                 status = "step"
 
             return status
-
+        '''
     def reinitiateEnvironment(self):
         self.current = self.start
 
@@ -158,7 +158,7 @@ class P4Environemnt:
             action = self.actions[act_index]
 
             newState = (state[0] + action[0], state[1] + action[1])
-            status = self.getNewStateStatus(newState)
+            status, cost = self.getNewStateStatus(newState)
 
             if status == "step":
 
@@ -191,7 +191,7 @@ class P4Environemnt:
 
         action = actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
-        status = self.getNewStateStatus(newState)
+        status,cost = self.getNewStateStatus(newState)
 
 
         if status == "step":
@@ -202,7 +202,7 @@ class P4Environemnt:
                 actions_closeness_goal = []
                 for action in actions:
                     newState = (state[0] + action[0], state[1] + action[1])
-                    status = self.getNewStateStatus(newState)
+                    status,cos = self.getNewStateStatus(newState)
                     if status == "step":
                         normlaizedDistance  = self.normalized_euclidean_distance(newState, goal)
                         closeness = 1 -normlaizedDistance
@@ -234,13 +234,10 @@ class P4Environemnt:
 
 
 
-        status = self.getNewStateStatus(newState)
+        status, cost = self.getNewStateStatus(newState)
 
         infinity = float('inf')
-        if status == 'step':
-            cost = 1
-        else:
-            cost = infinity
+
 
 
 
@@ -283,7 +280,7 @@ class P4Environemnt:
     def getClosenessToFakeGoalsFeature(self, state, act_index):
         action = self.actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
-        status = self.getNewStateStatus(newState)
+        status, cost = self.getNewStateStatus(newState)
         number_fake_goals = len(self.allGoals) - 1
         if status == "step":
 
@@ -624,7 +621,7 @@ def run_episode(env, policy,seed):
             # if it takes us out of boundry or obstacle
             stochasticAction = env.actions[stochasticActionIndex]
             newState = (env.current[0] + stochasticAction[0], env.current[1] + stochasticAction[1])
-            status = env.getNewStateStatus(newState)
+            status,cos = env.getNewStateStatus(newState)
             if status !="step":
                 #print "continued"
                 step+=1

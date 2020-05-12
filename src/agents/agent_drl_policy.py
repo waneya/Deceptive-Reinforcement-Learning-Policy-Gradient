@@ -14,10 +14,11 @@ ROOT = "G:\\Semester 1 2020\\COMP90055\\DRL-Policy-Gradient"
 PP_DIR = os.path.join(ROOT,'drl','PP')
 
 BETA = 1
-DECEPTIVE = False
+DECEPTIVE = True
 SIMPLE_SMOOTH = True
 PRUNE = False
 DEBUG = True
+USE_SINGLE_POLICY = False
 
 
 
@@ -303,7 +304,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getNewStateStatus(next)
+            status,cos = envReal.getNewStateStatus(next)
 
             # Code below will rechoose stage one stochastic
             # action if returned action is not legitimate
@@ -392,9 +393,10 @@ class Agent(object):
         fakePolicy = self.fakeGoalsPolicy[0]
         envReal = realPolicy.env
 
+
         default_prob_real = 1.0/number_of_goals
         default_prob_all_fake = (1.0/number_of_goals) * number_of_fake_goals
-        delta_prob= 0.2 * default_prob_real
+        delta_prob= 0.1 * default_prob_real
 
 
 
@@ -423,6 +425,7 @@ class Agent(object):
 
             firstStageActions = []
             for policy in allPolicies:
+                policy.env.current = current
                 bestAction = policy.getHighestProbabilityActionIndex(current)
                 firstStageActions.append(bestAction)
 
@@ -435,7 +438,7 @@ class Agent(object):
             action = envReal.actions[actionTakenIndex]
 
             next = (current[0] + action[0], current[1] + action[1])
-            status = envReal.getNewStateStatus(next)
+            status,cos = envReal.getNewStateStatus(next)
 
             # Code below will rechoose stage one stochastic
             # action if returned action is not legitimate
@@ -449,7 +452,8 @@ class Agent(object):
             # to initials
             confused = next in self.history
             margin = 2* simple_prune_real
-            probability_not_decrease_zero = (self.simple_prune_increment_param - simple_prune_real) > (margin + default_prob_real)
+            #probability_not_decrease_zero = (self.simple_prune_increment_param - simple_prune_real) > (margin + default_prob_real)
+            probability_not_decrease_zero = (stageTwoProbs[0] - simple_prune_real) > (default_prob_real)
             if not reChoose and \
                 not confused and \
                 probability_not_decrease_zero: #make sure probability does not decrease below 0
@@ -462,7 +466,8 @@ class Agent(object):
             # @TODO also capture behaviour without this
             confused = next in self.history
 
-            probability_not_exceed_one = (self.simple_prune_increment_param + default_prob_real + simple_prune_real) < (1 - margin)
+            #probability_not_exceed_one = (self.simple_prune_increment_param + default_prob_real + simple_prune_real) < (1 - margin)
+            probability_not_exceed_one = (stageTwoProbs[0] + simple_prune_real) < (1 - margin)
             total_fake_goal_prob = np.sum(stageTwoProbs[1:])
             total_fake_goal_pruning = number_of_fake_goals * simple_prune_fake
             if confused and probability_not_exceed_one:
@@ -512,9 +517,9 @@ class Agent(object):
         self.history = set()
         self.simple_prune_increment_param = 0
         self.simple_prune_decrement_param = 0
-        self.realGoalPolicy.env.current = self.startPosition
 
+        allPolicies = [self.realGoalPolicy] + self.fakeGoalsPolicy
 
-        for goalPolicy in self.fakeGoalsPolicy:
+        for goalPolicy in allPolicies:
             goalPolicy.env.current = self.startPosition
 
