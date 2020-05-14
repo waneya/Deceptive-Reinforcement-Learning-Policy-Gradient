@@ -10,7 +10,7 @@ from scipy.special import softmax
 import math
 import agent_drl_policy
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS_SINGLE_POLICY = np.array([60  #closeness
+INITIAL_WEIGHTS_SINGLE_POLICY = np.array([20  #closeness
                                           ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
                                           ,10 # step chaaracteristics
                                           #,500 # reachedGoal
@@ -165,15 +165,15 @@ class P4Environemnt:
                 if len(self.history) > 1 and not self.useOptimumCost:
                     if self.current == self.history[-2]: # get optimal cost only if zig zagging
                         self.useOptimumCost = True #permanaently use optimum cost if zig zagging
-
+                _distance = self.lmap._octile(newState, self.goal)/distanceNormalizer
                 if self.useOptimumCost:
                         optCost = self.lmap.optCost(self.goal, newState)
                         if optCost is not None:
                             closeness = (1.0-optCost/distanceNormalizer)
                         else:
-                            closeness = 1.0 - cost/distanceNormalizer
+                            closeness = 1.0 - _distance
                 else:
-                        closeness = 1.0 - cost/distanceNormalizer
+                        closeness = 1.0 - _distance
 
 
             else:
