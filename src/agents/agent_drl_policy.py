@@ -602,4 +602,5 @@ class Agent(object):
             goalPolicy.env.current = self.startPosition
             goalPolicy.env.useOptimumCost = False
             goalPolicy.env.history = []
+            goalPolicy.env.getClosenessToAllGoalsValue = np.full( (len(goalPolicy.env.allGoals),len(goalPolicy.env.actions) ),np.inf)
 

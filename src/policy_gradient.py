@@ -10,7 +10,7 @@ from scipy.special import softmax
 import math
 import agent_drl_policy
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS_SINGLE_POLICY = np.array([20  #closeness
+INITIAL_WEIGHTS_SINGLE_POLICY = np.array([0  #closeness
                                           ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
                                           ,10 # step chaaracteristics
                                           #,500 # reachedGoal
@@ -47,6 +47,9 @@ class P4Environemnt:
         else:
             self.rewards_weights = INITIAL_WEIGHTS_MULTIPLE_POLICIES
 
+        self.getClosenessToAllGoalsValue = np.full((len(self.allGoals),len(self.actions)),np.inf)
+
+
     def getNewStateStatus(self, state):
 
 
@@ -71,11 +74,10 @@ class P4Environemnt:
     def reinitiateEnvironment(self):
         self.current = self.start
 
-    def normalized_euclidean_distance(self, state1, state2):
+    def normalized__distance(self, state1, state2):
 
         distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
-        distance = math.sqrt(
-            ((state1[0] - state2[0]) ** 2) + ((state1[1] - state2[1]) ** 2))
+        distance = self.lmap._octile(state1,state2)
         normalizedDistance = distance / distanceNormalizer
 
         return normalizedDistance
@@ -146,41 +148,55 @@ class P4Environemnt:
         return reward
 
 
-    def getClosenessToGoalFeature(self, state, act_index):
-        # This feature ensures least number of steps are taken
+    def getClosenessToGoalFeature(self, state, act_index, goal = None):
 
 
-            action = self.actions[act_index]
-
-            newState = (state[0] + action[0], state[1] + action[1])
-            status, cost = self.getNewStateStatus(newState)
-
-            if newState ==self.goal:
-                return 1
-
-
-            if status =='step':
-                distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
-
-                if len(self.history) > 1 and not self.useOptimumCost:
-                    if self.current == self.history[-2]: # get optimal cost only if zig zagging
-                        self.useOptimumCost = True #permanaently use optimum cost if zig zagging
-                _distance = self.lmap._octile(newState, self.goal)/distanceNormalizer
-                if self.useOptimumCost:
-                        optCost = self.lmap.optCost(self.goal, newState)
-                        if optCost is not None:
-                            closeness = (1.0-optCost/distanceNormalizer)
-                        else:
-                            closeness = 1.0 - _distance
+            # This feature ensures least number of steps are taken
+                if goal == None:
+                    use_goal = self.goal
                 else:
-                        closeness = 1.0 - _distance
+                    use_goal = goal
+
+                goal_index = self.allGoals.index(use_goal)
+
+                if self.getClosenessToAllGoalsValue[goal_index][act_index] == np.inf:
+                #if True:
+                    action = self.actions[act_index]
+
+                    newState = (state[0] + action[0], state[1] + action[1])
+                    status, cost = self.getNewStateStatus(newState)
+
+                    if newState ==self.goal:
+                        return 1
 
 
-            else:
-                closeness = 0
+                    if status =='step':
+                        distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
+
+                        if len(self.history) > 1 and not self.useOptimumCost:
+                            if self.current == self.history[-2]: # get optimal cost only if zig zagging
+                                self.useOptimumCost = True #permanaently use optimum cost if zig zagging
+                        _distance = self.normalized__distance(newState, use_goal)
+                        if self.useOptimumCost:
+                                optCost = self.lmap.optCost(use_goal, newState)
+                                if optCost is not None:
+                                    closeness = (1.0-optCost/distanceNormalizer)
+                                else:
+                                    closeness = 1.0 - _distance
+                        else:
+                                closeness = 1.0 - _distance
 
 
-            return closeness
+                    else:
+                        closeness = 0
+
+                    self.getClosenessToAllGoalsValue[goal_index][act_index] = closeness
+
+                else:
+                    closeness = self.getClosenessToAllGoalsValue[goal_index][act_index]
+
+
+                return closeness
 
 
 
@@ -209,15 +225,17 @@ class P4Environemnt:
             for goal in self.allGoals:
 
                 actions_closeness_goal = []
-                for action in actions:
+                for inner_act_index in range(len(actions)):
+                    '''
                     newState = (state[0] + action[0], state[1] + action[1])
                     status,cos = self.getNewStateStatus(newState)
                     if status == "step":
-                        normlaizedDistance  = self.normalized_euclidean_distance(newState, goal)
+                        normlaizedDistance  = self.normalized__distance(newState, goal)
                         closeness = 1 -normlaizedDistance
                     else:
                         closeness = 0
-                    actions_closeness_goal.append(closeness)
+                    '''
+                    actions_closeness_goal.append(self.getClosenessToGoalFeature(state, inner_act_index, goal = goal))
                 actions_closeness_goal = np.array(actions_closeness_goal)
                 actions_closeness_goal -= np.min(actions_closeness_goal)
                 best_action_index = np.argmax(actions_closeness_goal)
@@ -296,7 +314,7 @@ class P4Environemnt:
             for fake_goal_ind in range(1, number_fake_goals):  # index 0 is real goal
                 fake_goal = self.allGoals[fake_goal_ind]
 
-                normalizedDistance = self.normalized_euclidean_distance(fake_goal, newState)
+                normalizedDistance = self.normalized__distance(fake_goal, newState)
                 closenessToGoal = 1 - normalizedDistance
                 fg_closness[fake_goal_ind - 1] = closenessToGoal
 
@@ -316,6 +334,7 @@ class P4Environemnt:
         done = newState == self.goal
         self.history.append(self.current)
         self.current = newState
+        self.getClosenessToAllGoalsValue = np.full( (len(self.allGoals),len(self.actions)),np.inf)
 
         return done, newState
 
