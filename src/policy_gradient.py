@@ -8,13 +8,17 @@
 import numpy as np
 from scipy.special import softmax
 import math
+import agent_drl_policy
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS = np.array([55 #closeness
-                            #,60 #divergence +ve value means penalize divergence and favour action closer to all goals
-                            #,-10 # -ve means penalize
-                            #,500 # reachedGoal
-                            ])
-NUMBER_PARAMETERS = len(INITIAL_WEIGHTS)
+INITIAL_WEIGHTS_SINGLE_POLICY = np.array([55  #closeness
+                                          ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
+                                          ,-10 # -ve means penalize
+                                          #,500 # reachedGoal
+                                          ])
+
+INITIAL_WEIGHTS_MULTIPLE_POLICIES = np.array([10 # inverse cost
+                                              ])
+
 ALPHA = 0.001
 GAMMA = 0.95
 GLOBAL_SEED = 0
@@ -36,6 +40,11 @@ class P4Environemnt:
         self.actions = ACTIONS
         self.allGoals = allGoals
         self.history = []
+
+        if agent_drl_policy.USE_SINGLE_POLICY:
+            self.rewards_weights = INITIAL_WEIGHTS_SINGLE_POLICY
+        else:
+            self.rewards_weights = INITIAL_WEIGHTS_MULTIPLE_POLICIES
 
     def getNewStateStatus(self, state):
 
@@ -113,7 +122,7 @@ class P4Environemnt:
             actionWiseFeaturecVector.append(features)
 
 
-        assert len(features) == NUMBER_PARAMETERS
+        assert len(features) == len(self.rewards_weights)
         actionWiseFeaturecVector = np.array(actionWiseFeaturecVector)
 
         # below lines further normalize closeness by subtracting lowest columns
@@ -125,27 +134,35 @@ class P4Environemnt:
 
     def getStateActionFeatures(self,state,act_index):
 
+        if agent_drl_policy.USE_SINGLE_POLICY:
 
-        featureOne = self.getClosenessToGoalFeature(state, act_index)
-        #featureTwo = self.getDivergenceFromAllGoalsFeature(state, act_index)
-        #featureThree = self.stepFeature(state, act_index)
-        #featureFour = self.goalReachedFeature(state, act_index)
+            featureOne = self.getClosenessToGoalFeature(state, act_index)
+            featureTwo = self.getDivergenceFromAllGoalsFeature(state, act_index)
+            featureThree = self.stepFeature(state, act_index)
+            #featureFour = self.goalReachedFeature(state, act_index)
 
-        features = [featureOne
-                    #featureTwo
-                    #,featureThree
-                    #,featureFour
-                    ]
+            features = [featureOne
+                        ,featureTwo
+                        ,featureThree
+                        #,featureFour
+                        ]
 
-        return features
+            return features
 
+        else:
+
+            featureOne = self.getClosenessToGoalFeature(state, act_index)
+            features = [featureOne
+                        ]
+
+            return features
 
     def getStateActionReward(self, state, act_index):
         # This function gives the reward
         # for chosen action during the training
         # phase. Currently we are not learning
         # the weights of the  rewards
-        rewards_weights = INITIAL_WEIGHTS
+        rewards_weights = self.rewards_weights
         features = self.getStateActionFeatures(state,act_index)
         reward = np.dot(rewards_weights, features)
         return reward
@@ -712,7 +729,10 @@ def trainPolicy(policy):
     policy.alpha = ALPHA
     policy.gamma = GAMMA
     #policy.parameters = np.random.rand(NUMBER_PARAMETERS)
-    policy.parameters = INITIAL_WEIGHTS
+    if agent_drl_policy.USE_SINGLE_POLICY:
+        policy.parameters = INITIAL_WEIGHTS_SINGLE_POLICY
+    else:
+        policy.parameters = INITIAL_WEIGHTS_MULTIPLE_POLICIES
 
     episode_rewards, policytrained = train(
                                     env,
