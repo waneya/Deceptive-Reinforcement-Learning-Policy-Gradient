@@ -14,8 +14,8 @@ ROOT = "G:\\Semester 1 2020\\COMP90055\\DRL-Policy-Gradient"
 PP_DIR = os.path.join(ROOT,'drl','PP')
 
 BETA = 1
-DECEPTIVE = False
-USE_SINGLE_POLICY = True
+DECEPTIVE = True
+USE_SINGLE_POLICY = False
 
 SIMPLE_SMOOTH = True
 PRUNE = False
@@ -389,7 +389,7 @@ class Agent(object):
         # all other policy methods work on there variables
         #@TODO Update others if needed
         #env.current = next # highest probability method calculates on env.current
-        env.current = next
+        env.takeAction(actionTakenIndex) #updates current as well
 
 
         #terminal, newState = self.realGoalPolicy.env.takeActions(bestActionIndex)
@@ -510,7 +510,7 @@ class Agent(object):
             #@TODO Update others if needed
             for policy in allPolicies:
                 env = policy.getPolicyEnvironment()
-                env.current = next
+                env.takeAction(actionTakenIndex)
 
 
 
@@ -525,8 +525,10 @@ class Agent(object):
             move = self.irrationalAgent(current)
             #move = self.entropyMaximizingAction(current) # this agent is not working
             #move = self.obsEvl(current)
+            print move
         elif USE_SINGLE_POLICY:
             move = self.honest(current)
+            print move
             # honest is honest with Multiple policies
             # with single policy, honest include divergence feature
 
@@ -560,4 +562,6 @@ class Agent(object):
 
         for goalPolicy in allPolicies:
             goalPolicy.env.current = self.startPosition
+            goalPolicy.env.useOptimumCost = False
+            goalPolicy.env.history = []
 

@@ -10,9 +10,9 @@ from scipy.special import softmax
 import math
 import agent_drl_policy
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS_SINGLE_POLICY = np.array([55  #closeness
+INITIAL_WEIGHTS_SINGLE_POLICY = np.array([60  #closeness
                                           ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
-                                          ,-10 # -ve means penalize
+                                          ,10 # step chaaracteristics
                                           #,500 # reachedGoal
                                           ])
 
@@ -21,7 +21,7 @@ INITIAL_WEIGHTS_MULTIPLE_POLICIES = np.array([10 # inverse cost
 
 ALPHA = 0.001
 GAMMA = 0.95
-GLOBAL_SEED = 0
+GLOBAL_SEED = 5
 EPISODES = 1
 SUMMED_PARAMETER_UPDATE = False # this is not reqyuired, remove its logic
 P4_BASED_LOSS = True
@@ -40,6 +40,7 @@ class P4Environemnt:
         self.actions = ACTIONS
         self.allGoals = allGoals
         self.history = []
+        self.useOptimumCost = False
 
         if agent_drl_policy.USE_SINGLE_POLICY:
             self.rewards_weights = INITIAL_WEIGHTS_SINGLE_POLICY
@@ -66,30 +67,7 @@ class P4Environemnt:
                 status = 'step'
 
             return status, cost
-        '''
-        else:
 
-            new_x = state[0]
-            new_y = state[1]
-            mapref = self.lmap
-
-
-            # To check the reasonable of action
-            if new_x < 1 or new_x >= mapref.info['width'] - 1:
-                status = 'OOB'
-
-            elif new_y < 1 or new_y >= mapref.info['height'] - 1:
-
-                status = 'OOB'
-
-            elif mapref.matrix[new_x][new_y] != ".":
-                status = 'obstacle'
-
-            else:
-                status = "step"
-
-            return status
-        '''
     def reinitiateEnvironment(self):
         self.current = self.start
 
@@ -182,30 +160,28 @@ class P4Environemnt:
 
 
             if status =='step':
-                optCost = self.lmap.optCost(self.goal, newState)
-                if optCost is not None:
-                    distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
-                    return (1.0-optCost/distanceNormalizer)
+                distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
+
+                if len(self.history) > 1 and not self.useOptimumCost:
+                    if self.current == self.history[-2]: # get optimal cost only if zig zagging
+                        self.useOptimumCost = True #permanaently use optimum cost if zig zagging
+
+                if self.useOptimumCost:
+                        optCost = self.lmap.optCost(self.goal, newState)
+                        if optCost is not None:
+                            closeness = (1.0-optCost/distanceNormalizer)
+                        else:
+                            closeness = 1.0 - cost/distanceNormalizer
                 else:
-                    return 0
-            else:
-                return 0
-
-            return optCost
-            '''
-            if status == "step":
-
-
-                normalizedDistance = self.normalized_euclidean_distance(newState,self.goal)
-                closenessToGoal = 1 - normalizedDistance
-                featureValueForAction = closenessToGoal  # further normalizing
+                        closeness = 1.0 - cost/distanceNormalizer
 
 
             else:
-                featureValueForAction = 0
+                closeness = 0
 
-            return featureValueForAction
-            '''
+
+            return closeness
+
 
 
     def getDivergenceFromAllGoalsFeature(self, state, act_index):
@@ -271,10 +247,8 @@ class P4Environemnt:
 
         infinity = float('inf')
 
-
-
-
-        if cost == infinity:
+        '''
+        if cost == infinity: # bad idea. This is already covered in feature 1
             featureValue = 100.0
         else:
             featureValue = cost/100.0 #
@@ -285,11 +259,12 @@ class P4Environemnt:
             if newState in nearHistory:
                 featureValue = 100
                 #pass
-
+        '''
+        featureValue = 0
         if newState == self.goal:
-            featureValue = -25.0
+            featureValue = 25.0
         if newState in self.allGoals[1:]: # i.e. fake goals
-            featureValue = 100.0
+            featureValue = -100.0
 
         return featureValue
 
@@ -401,7 +376,10 @@ class LinearPolicy:
         stepActionsProb= self.getPolicyBasedActionProbs(state, self.env.actions)
 
         # Action with highest prpbability as per policy
-        bestActionIndex = np.argmax(stepActionsProb)
+        bestActionIndices = np.argwhere(stepActionsProb == np.max(stepActionsProb))
+        bestActionIndices = bestActionIndices.flatten()
+        bestActionIndex = np.random.choice(bestActionIndices)
+
 
         bestAction = self.env.actions[bestActionIndex]
         next = (state[0] + bestAction[0], state[1] + bestAction[1])
