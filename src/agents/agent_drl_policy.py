@@ -396,7 +396,7 @@ class Agent(object):
 
         default_prob_real = 1.0/number_of_goals
         default_prob_all_fake = (1.0/number_of_goals) * number_of_fake_goals
-        delta_prob= 0.1 * default_prob_real
+        delta_prob= 0.15 * default_prob_real
 
 
 

@@ -129,7 +129,7 @@ class GR(object):
                     kwargs = {"lmap": self.model, "real_goal": real_goal,
                               "fake_goals": fake_goals, "map_file": self.map, "start": start}
                 self.obs_agent = agentmod.Agent(**kwargs)
-                
+
                 # generate paths, get probabilities * 6 and write to csv
                 for density in densities:
                     for distribution in distributions:
