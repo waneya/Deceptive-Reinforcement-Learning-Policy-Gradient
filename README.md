@@ -1,4 +1,4 @@
-# Application of Policy Gradient on Deceptive Reinforcement Learning:
+# Application of Policy Gradient For Deceptive Reinforcement Learning:
 
 Deception in Artificial Intelligence is gaining more and more attention in the research community because of its numerous interesting applications. Consider the problem of escorting a VIP to one of five possible destinations. If the destination is recognised by an observer, the observer plans to assign an assassin to the destination. Deceptive path planning is very important to protect the VIP because it ensures that the true destination of VIP is not revealed for as long as possible. Moreover, if the VIP travels more than once, for example on the next day, between the same source and destination, the policy must produce a different deceptive path. An example of generation of such deceptive stochastic path is given below:
 
