@@ -32,7 +32,7 @@ RANDOM = 1
 
 IRRATIONAL = True
 
-OBS_AGENT = "agent_drl_policy"  # generates observations
+OBS_AGENT = "agent_drl"  # generates observations
 # OBS_AGENT = "agent_rta"
 # GR_AGENT = "gr_agent_ramirez"
 GR_AGENT = "gr_agent"  # calculates probabilities

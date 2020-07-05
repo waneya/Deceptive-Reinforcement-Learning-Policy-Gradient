@@ -166,7 +166,7 @@ class P4Environemnt:
                     newState = (state[0] + action[0], state[1] + action[1])
                     status, cost = self.getNewStateStatus(newState)
 
-                    if newState ==self.goal:
+                    if newState == use_goal:
                         return 1
 
 
@@ -178,9 +178,13 @@ class P4Environemnt:
                                 self.useOptimumCost = True #permanaently use optimum cost if zig zagging
                         _distance = self.normalized__distance(newState, use_goal)
                         if self.useOptimumCost:
-                                optCost = self.lmap.optCost(use_goal, newState)
+
+                                optCost = float(self.lmap.optCost(use_goal, newState))
+
                                 if optCost is not None:
-                                    closeness = (1.0-optCost/distanceNormalizer)
+                                    closeness = (1.0- float(optCost/distanceNormalizer))
+
+
                                 else:
                                     closeness = 1.0 - _distance
                         else:
@@ -547,7 +551,7 @@ class LinearPolicy:
             totalUpdate = np.sum(updateValueAllSteps)
 
             # gradient ascent on parameters by adding whole episode update
-            self.parameters +=totalUpdate
+            self.parameters += totalUpdate
 
         else:
             # calculate gradients for each action over all observations
