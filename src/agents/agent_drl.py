@@ -10,11 +10,13 @@ GAMMA = 1
 TERM_V = 10000.0
 EPSILON = 0.00
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-Q_DIR = "../drl/qfunc/"
+#Q_DIR = "../drl/qfunc/"
+ROOT = "G:\\Semester 1 2020\\COMP90055\\DRL-Policy-Gradient"
+Q_DIR = os.path.join(ROOT,'drl','qfunc')
 BETA = 1
-DECEPTIVE = False
+DECEPTIVE = True
 PRUNE = True
-DEBUG = True
+DEBUG = False
 
 
 class Agent(object):
