@@ -4,7 +4,6 @@ Deception in Artificial Intelligence is gaining more and more attention in the r
 
 
 
-
 # Research Credits
 
 ​Y. Yang, Z. Liu, P. Masters and T. Miller, “Deceptive Reinforcement Learning for Preserving the Privacy of Reward Functions,” 2019.
