@@ -4,6 +4,8 @@ Deception in Artificial Intelligence is gaining more and more attention in the r
 
 ![](https://github.com/waneya/DRL-Policy-Gradient/blob/master/drl/PP/gif/Older/Stochastic%20Path%20Generation.gif)
 
+In this research project, we discuss how policy-gradients can be used to achieve deception in path planning. The project link of our work can be found here.
+
 # Research Credits
 
 ​Y. Yang, Z. Liu, P. Masters and T. Miller, “Deceptive Reinforcement Learning for Preserving the Privacy of Reward Functions,” 2019.
