@@ -5,9 +5,7 @@ Deception in Artificial Intelligence is gaining more and more attention in the r
 ![](https://github.com/waneya/DRL-Policy-Gradient/blob/master/drl/PP/gif/Older/Stochastic%20Path%20Generation.gif)
 
 # Project Report
-The report can be found at:
-
-[GitHub](https://github.com/waneya/Deceptive-Reinforcement-Learning-Policy-Gradient/blob/master/Policy%20Gradient%20Based%20-%20Deceptive%20Reinforcement%20Learning.pdf)
+The report can be found [here](https://github.com/waneya/Deceptive-Reinforcement-Learning-Policy-Gradient/blob/master/Policy%20Gradient%20Based%20-%20Deceptive%20Reinforcement%20Learning.pdf)
 
 
 # Research Credits
