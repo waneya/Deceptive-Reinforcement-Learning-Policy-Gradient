@@ -651,6 +651,10 @@ class SimController(object):
                 kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
                           "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name, "start":self.cfg["START"]}
 
+            elif agentfile == "agent_irrational_policy_grad":
+                kwargs = {"lmap": self.lmap, "real_goal": self.cfg["GOAL"],
+                          "fake_goals": self.cfg["POSS_GOALS"], "map_file": map_name, "start":self.cfg["START"]}
+
             self.agent = agentmod.Agent(**kwargs)
             self.agent.reset()
             self.updateStatus("Initialised " + agentfile)

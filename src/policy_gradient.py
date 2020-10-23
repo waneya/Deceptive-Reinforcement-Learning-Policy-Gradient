@@ -8,10 +8,10 @@
 import numpy as np
 from scipy.special import softmax
 import math
-import agent_drl_policy
+from agents import agent_irrational_policy_grad
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
-INITIAL_WEIGHTS_SINGLE_POLICY = np.array([0  #closeness
-                                          ,60 #divergence +ve value means penalize divergence and favour action closer to all goals
+INITIAL_WEIGHTS_SINGLE_POLICY = np.array([#0,  #closeness
+                                          60 #divergence +ve value means penalize divergence and favour action closer to all goals
                                           ,10 # step chaaracteristics
                                           #,500 # reachedGoal
                                           ])
@@ -42,7 +42,7 @@ class P4Environemnt:
         self.history = []
         self.useOptimumCost = False
 
-        if agent_drl_policy.USE_SINGLE_POLICY:
+        if agent_irrational_policy_grad.USE_SINGLE_POLICY:
             self.rewards_weights = INITIAL_WEIGHTS_SINGLE_POLICY
         else:
             self.rewards_weights = INITIAL_WEIGHTS_MULTIPLE_POLICIES
@@ -114,15 +114,15 @@ class P4Environemnt:
 
     def getStateActionFeatures(self,state,act_index):
 
-        if agent_drl_policy.USE_SINGLE_POLICY:
+        if agent_irrational_policy_grad.USE_SINGLE_POLICY:
 
-            featureOne = self.getClosenessToGoalFeature(state, act_index)
+            #featureOne = self.getClosenessToGoalFeature(state, act_index)
             featureTwo = self.getDivergenceFromAllGoalsFeature(state, act_index)
             featureThree = self.stepFeature(state, act_index)
             #featureFour = self.goalReachedFeature(state, act_index)
 
-            features = [featureOne
-                        ,featureTwo
+            features = [#featureOne,
+                         featureTwo
                         ,featureThree
                         #,featureFour
                         ]
@@ -730,7 +730,7 @@ def trainPolicy(policy):
     policy.alpha = ALPHA
     policy.gamma = GAMMA
     #policy.parameters = np.random.rand(NUMBER_PARAMETERS)
-    if agent_drl_policy.USE_SINGLE_POLICY:
+    if agent_irrational_policy_grad.USE_SINGLE_POLICY:
         policy.parameters = INITIAL_WEIGHTS_SINGLE_POLICY
     else:
         policy.parameters = INITIAL_WEIGHTS_MULTIPLE_POLICIES
