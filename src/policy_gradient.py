@@ -8,7 +8,8 @@
 import numpy as np
 from scipy.special import softmax
 import math
-from agents import agent_irrational_policy_grad
+import qFunction as qf
+import agent_irrational_policy_grad as pol_ag
 ACTIONS = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 INITIAL_WEIGHTS_SINGLE_POLICY = np.array([#0,  #closeness
                                           60 #divergence +ve value means penalize divergence and favour action closer to all goals
@@ -41,8 +42,10 @@ class P4Environemnt:
         self.allGoals = allGoals
         self.history = []
         self.useOptimumCost = False
+        self.all_goals_q = {}
 
-        if agent_irrational_policy_grad.USE_SINGLE_POLICY:
+
+        if pol_ag.USE_SINGLE_POLICY:
             self.rewards_weights = INITIAL_WEIGHTS_SINGLE_POLICY
         else:
             self.rewards_weights = INITIAL_WEIGHTS_MULTIPLE_POLICIES
@@ -114,7 +117,7 @@ class P4Environemnt:
 
     def getStateActionFeatures(self,state,act_index):
 
-        if agent_irrational_policy_grad.USE_SINGLE_POLICY:
+        if pol_ag.USE_SINGLE_POLICY:
 
             #featureOne = self.getClosenessToGoalFeature(state, act_index)
             featureTwo = self.getDivergenceFromAllGoalsFeature(state, act_index)
@@ -171,7 +174,8 @@ class P4Environemnt:
 
 
                     if status =='step':
-                        distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
+                        #distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
+                        distanceNormalizer = 100000
 
                         if len(self.history) > 1 and not self.useOptimumCost:
                             if self.current == self.history[-2]: # get optimal cost only if zig zagging
@@ -179,10 +183,11 @@ class P4Environemnt:
                         _distance = self.normalized__distance(newState, use_goal)
                         if self.useOptimumCost:
 
-                                optCost = float(self.lmap.optCost(use_goal, newState))
-
+                                #optCost = float(self.lmap.optCost(use_goal, newState))
+                                optCost = self.all_goals_q[use_goal].value(newState)
                                 if optCost is not None:
-                                    closeness = (1.0- float(optCost/distanceNormalizer))
+                                    #closeness = (1.0- float(optCost/distanceNormalizer))
+                                    closeness = float(optCost / distanceNormalizer)
 
 
                                 else:
@@ -308,6 +313,8 @@ class P4Environemnt:
 
 
     def getClosenessToFakeGoalsFeature(self, state, act_index):
+
+        ## not in use
         action = self.actions[act_index]
         newState = (state[0] + action[0], state[1] + action[1])
         status, cost = self.getNewStateStatus(newState)
@@ -730,7 +737,7 @@ def trainPolicy(policy):
     policy.alpha = ALPHA
     policy.gamma = GAMMA
     #policy.parameters = np.random.rand(NUMBER_PARAMETERS)
-    if agent_irrational_policy_grad.USE_SINGLE_POLICY:
+    if pol_ag.USE_SINGLE_POLICY:
         policy.parameters = INITIAL_WEIGHTS_SINGLE_POLICY
     else:
         policy.parameters = INITIAL_WEIGHTS_MULTIPLE_POLICIES

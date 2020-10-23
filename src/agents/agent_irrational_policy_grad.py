@@ -1,10 +1,12 @@
+
 import os.path
 import math
-import policy_gradient
-from policy_gradient import P4Environemnt
 import numpy as np
 from collections import Counter
 import qFunction
+import policy_gradient
+from policy_gradient import P4Environemnt
+
 
 
 
@@ -43,34 +45,28 @@ class Agent(object):
         if DEBUG:
             print self.fake_goals
 
-        def train_critic():
-            if DEBUG:
-                print self.fake_goals
-            real_q_file = PP_DIR + map_file + ".{:d}.{:d}.q".format(real_goal[0], real_goal[1])
-            self.real_q = qFunction.QFunction(lmap.width, lmap.height)
-            if os.path.isfile(real_q_file):
-                if DEBUG:
-                    print "loading q function for", real_goal
-                self.real_q.load(real_q_file)
-            else:
-                if DEBUG:
-                    print "training q function for", real_goal
-                qFunction.train(self.real_q, lmap, real_goal, TERM_V, GAMMA)
-                self.real_q.save(real_q_file)
-            self.fake_q = []
-            for i, fg in enumerate(fake_goals):
-                fake_q_file = PP_DIR + map_file + ".{:d}.{:d}.q".format(fg[0], fg[1])
-                fq = qFunction.QFunction(lmap.width, lmap.height)
-                if os.path.isfile(fake_q_file):
+        def train_critic(policy):
+
+            for goal in policy.env.allGoals:
+                q_file = PP_DIR + map_file + ".{:d}.{:d}.q".format(goal[0], goal[1])
+                policy.env.all_goals_q[goal] = qFunction.QFunction(lmap.width, lmap.height)
+                goal_qf = policy.env.all_goals_q[goal]
+
+                if os.path.isfile(q_file):
                     if DEBUG:
-                        print "loading q function for", fg
-                    fq.load(fake_q_file)
+                        print "loading q function for", real_goal
+                    goal_qf.load(q_file)
+
+
                 else:
                     if DEBUG:
-                        print "training q function for", fg
-                    qFunction.train(fq, lmap, fg, TERM_V, GAMMA)
-                    fq.save(fake_q_file)
-                self.fake_q.append(fq)
+                        print "training q function for", real_goal
+                    goal_qf.train(goal_qf, lmap, real_goal, TERM_V, GAMMA)
+                    goal_qf.save(q_file)
+
+                print (goal_qf.q_tbl)
+
+
         # Section of code below will either
         # load policy parameters for real
         # and fake goals, or train them
@@ -117,7 +113,8 @@ class Agent(object):
             return policy
 
         self.realGoalPolicy = loadParamOrTrainPolicy(self, self.real_goal,self.allGoals)
-        train_critic()
+        train_critic(self.realGoalPolicy)
+
 
         if not USE_SINGLE_POLICY:
             self.fakeGoalsPolicy = []
@@ -125,6 +122,10 @@ class Agent(object):
 
                 fakeGoalPolicy = loadParamOrTrainPolicy(self, fg,self.allGoals)
                 self.fakeGoalsPolicy.append(fakeGoalPolicy)
+
+
+
+
 
 
         self.sum_q_diff = [0.0] * (len(fake_goals) + 1)
