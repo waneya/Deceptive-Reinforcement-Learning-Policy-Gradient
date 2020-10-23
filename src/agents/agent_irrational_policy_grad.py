@@ -23,7 +23,7 @@ BETA = 1
 DECEPTIVE = True
 USE_SINGLE_POLICY = True
 
-SIMPLE_SMOOTH = True
+SIMPLE_SMOOTH = False
 PRUNE = False
 DEBUG = True
 
@@ -61,7 +61,7 @@ class Agent(object):
                 else:
                     if DEBUG:
                         print "training q function for", real_goal
-                    goal_qf.train(goal_qf, lmap, real_goal, TERM_V, GAMMA)
+                    qFunction.train(goal_qf, lmap, real_goal, TERM_V, GAMMA)
                     goal_qf.save(q_file)
 
                 print (goal_qf.q_tbl)
@@ -214,10 +214,10 @@ class Agent(object):
         envReal = realPolicy.env
 
         if USE_SINGLE_POLICY:
-            default_prob_real = 0.05
-            default_prob_others = 0.95
+            default_prob_real = 0.05 #initial probability of moving towards real goal
+            default_prob_others = 0.95 #initial probability of taking deceptive action
             delta_prob = 0.4* default_prob_others
-            maintain_at = 0.55
+            maintain_at = 0.7 # what is the probability of choosing policy action
             retantion = maintain_at - default_prob_real
         else:
 
@@ -260,9 +260,10 @@ class Agent(object):
             firstStageActions = []
 
             if USE_SINGLE_POLICY:
-                closest_index = self.getBestAction(realPolicy, current)
+                closest_index = self.getBestAction(realPolicy, current) # action that take closest to real goal
                 realPolicy.env.current = current
-                policy_index = realPolicy.getHighestProbabilityActionIndex(current)
+                policy_index = realPolicy.getHighestProbabilityActionIndex(current) # action that takes closest to all goals (deceptive action)
+                #policy_index = realPolicy.getStochasticActionIndex(current)
                 firstStageActions = [closest_index, policy_index]
             else:
                 for policy in allPolicies:

@@ -174,8 +174,10 @@ class P4Environemnt:
 
 
                     if status =='step':
-                        #distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height'])
-                        distanceNormalizer = 100000
+
+
+                        #distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height']) # for real time A-starr
+                        distanceNormalizer = 100000 # for precalculated q-tables
 
                         if len(self.history) > 1 and not self.useOptimumCost:
                             if self.current == self.history[-2]: # get optimal cost only if zig zagging
@@ -183,11 +185,11 @@ class P4Environemnt:
                         _distance = self.normalized__distance(newState, use_goal)
                         if self.useOptimumCost:
 
-                                #optCost = float(self.lmap.optCost(use_goal, newState))
-                                optCost = self.all_goals_q[use_goal].value(newState)
+                                #optCost = float(self.lmap.optCost(use_goal, newState)) # for real time A-starr
+                                optCost = self.all_goals_q[use_goal].value(newState) # for precalculated q-tables. it is actually closeness
                                 if optCost is not None:
-                                    #closeness = (1.0- float(optCost/distanceNormalizer))
-                                    closeness = float(optCost / distanceNormalizer)
+                                    #closeness = (1.0- float(optCost/distanceNormalizer)) # for real time A-starr
+                                    closeness = float(optCost / distanceNormalizer) # for precalculated q-tables
 
 
                                 else:
