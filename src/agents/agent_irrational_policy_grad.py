@@ -74,7 +74,7 @@ class Agent(object):
         def loadParamOrTrainPolicy(agent, goal, allGoals):
 
             if USE_SINGLE_POLICY:
-                goalParaFile = PP_DIR + map_file + "param_singlepolicy_"+str(len(policy_gradient.INITIAL_WEIGHTS_SINGLE_POLICY))+"_goal({:d}.{:d}).npy".format(goal[0], goal[1])
+                goalParaFile = PP_DIR + map_file + "param_singlepolicy_" + str(len(policy_gradient.INITIAL_WEIGHTS_SINGLE_POLICY)) + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
             else:
                 goalParaFile = PP_DIR + map_file + "param_multipolicy_" + str(len(policy_gradient.INITIAL_WEIGHTS_SINGLE_POLICY)) + "_goal({:d}.{:d}).npy".format(goal[0], goal[1])
 

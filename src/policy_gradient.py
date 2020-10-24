@@ -174,13 +174,60 @@ class P4Environemnt:
 
         return closeness
 
+
+
+    def getDivergenceFromAllGoalsFeature(self, state, act_index):
+        '''
+
+        :param state:
+        :param actions:
+        :param act_index:
+        :return: Total divergence from all goals for act_index.
+                 Higher the divergence, more irrational the action
+                 because it, overall, diverges from all goals.
+        '''
+
+
+        actions = self.actions
+
+        action = actions[act_index]
+        newState = (state[0] + action[0], state[1] + action[1])
+        status,cost = self.getNewStateStatus(newState)
+
+
+        if status == "step":
+
+            goal_wise_action_divergence = []
+            for goal in self.allGoals:
+
+                actions_closeness_goal = []
+                for inner_act_index in range(len(actions)):
+                    actions_closeness_goal.append(self.getClosenessToGoalFeature(state, inner_act_index, goal = goal))
+                actions_closeness_goal = np.array(actions_closeness_goal)
+                actions_closeness_goal -= np.min(actions_closeness_goal)
+                best_action_index = np.argmax(actions_closeness_goal)
+                best_action_closeness = np.max(actions_closeness_goal)
+                given_action_closeness = actions_closeness_goal[act_index]
+                action_divergence_from_optimal_this_goal =   given_action_closeness - best_action_closeness
+                goal_wise_action_divergence.append(action_divergence_from_optimal_this_goal)
+            goal_wise_action_divergence = np.array(goal_wise_action_divergence)
+            total_divergence = np.sum(goal_wise_action_divergence)
+
+            featureValue =  total_divergence
+
+        else:
+            featureValue = 0
+
+        return featureValue
+
     '''
     def getClosenessToGoalFeature(self, state, act_index, goal = None, q_table=True):
-    
+
     # Use this method if you want to use A-star in real
     # time for optimum closeness calculations
     # Note that calculating closeness using A-star 
     # is very slow.
+    # Use below commented divergence calculations with this method
 
 
                 if goal == None:
@@ -247,7 +294,8 @@ class P4Environemnt:
                 return closeness
 
    '''
-
+    """
+    # below method must be used if using A-Star for closeness calculations
     def getDivergenceFromAllGoalsFeature(self, state, act_index):
         '''
 
@@ -274,15 +322,6 @@ class P4Environemnt:
 
                 actions_closeness_goal = []
                 for inner_act_index in range(len(actions)):
-                    '''
-                    newState = (state[0] + action[0], state[1] + action[1])
-                    status,cos = self.getNewStateStatus(newState)
-                    if status == "step":
-                        normlaizedDistance  = self.normalized__distance(newState, goal)
-                        closeness = 1 -normlaizedDistance
-                    else:
-                        closeness = 0
-                    '''
                     actions_closeness_goal.append(self.getClosenessToGoalFeature(state, inner_act_index, goal = goal))
                 actions_closeness_goal = np.array(actions_closeness_goal)
                 actions_closeness_goal -= np.min(actions_closeness_goal)
@@ -300,6 +339,8 @@ class P4Environemnt:
             featureValue = 0
 
         return featureValue
+        
+    """
 
     def stepFeature(self, state, act_index):
 

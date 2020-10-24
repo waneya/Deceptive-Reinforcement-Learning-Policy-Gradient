@@ -22,10 +22,10 @@ AGENT_FILE = "agent_irrational_policy_grad.py"       #agent filename - must be i
 #GOAL      =   (50, 90)#coordinates of goal location in (col,row) format
 #POSS_GOALS = [ (38,40),(8, 73), (5,11)  ]
 
-#MAP_FILE  = "arena.map"   	#map filename - must be in maps (sister dir to src)
-#START     = (10, 5)           #coordinates of start location in (col,row) format
-#GOAL      = (28, 43)            #coordinates of goal location in (col,row) format
-#POSS_GOALS = [(25, 11), (39, 29), (8, 43)]
+MAP_FILE  = "arena.map"   	#map filename - must be in maps (sister dir to src)
+START     = (10, 5)           #coordinates of start location in (col,row) format
+GOAL      = (28, 43)            #coordinates of goal location in (col,row) format
+POSS_GOALS = [(25, 11), (39, 29), (8, 43)]
 
 #MAP_FILE  = "100_maze.map"   	#map filename - must be in maps (sister dir to src)
 #START     = (25, 11)           #coordinates of start location in (col,row) format
@@ -44,10 +44,10 @@ AGENT_FILE = "agent_irrational_policy_grad.py"       #agent filename - must be i
 #GOAL      = (8, 5)            #coordinates of goal location in (col,row) format
 #POSS_GOALS = [(40, 5)]
 
-MAP_FILE  = "empty.map"   	#map filename - must be in maps (sister dir to src)
-START     = (20, 41)           #coordinates of start location in (col,row) format
-GOAL      = (8, 5)            #coordinates of goal location in (col,row) format
-POSS_GOALS = [(40, 5)]
+#MAP_FILE  = "empty.map"   	#map filename - must be in maps (sister dir to src)
+#START     = (20, 41)           #coordinates of start location in (col,row) format
+#GOAL      = (8, 5)            #coordinates of goal location in (col,row) format
+#POSS_GOALS = [(40, 5)]
 
 GUI = True                      #True = show GUI, False = run on command line
 SPEED = 0.0                     #delay between displayed moves in seconds
