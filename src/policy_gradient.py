@@ -150,11 +150,39 @@ class P4Environemnt:
         reward = np.dot(rewards_weights, features)
         return reward
 
+    def getClosenessToGoalFeature(self, state, act_index, goal = None, q_table=True):
 
-    def getClosenessToGoalFeature(self, state, act_index, goal = None):
+        if goal == None:
+            use_goal = self.goal
+        else:
+            use_goal = goal
+
+        action = self.actions[act_index]
+
+        newState = (state[0] + action[0], state[1] + action[1])
+        status, cost = self.getNewStateStatus(newState)
+
+        if newState == use_goal:
+            return 1
+
+        if status == 'step':
+            closeness_normalizer = 10000  # for precalculated q-tables
+            closeness = self.all_goals_q[use_goal].value(newState)/closeness_normalizer  # for precalculated q-tables. it is actually closeness
+
+        else:
+            closeness = 0
+
+        return closeness
+
+    '''
+    def getClosenessToGoalFeature(self, state, act_index, goal = None, q_table=True):
+    
+    # Use this method if you want to use A-star in real
+    # time for optimum closeness calculations
+    # Note that calculating closeness using A-star 
+    # is very slow.
 
 
-            # This feature ensures least number of steps are taken
                 if goal == None:
                     use_goal = self.goal
                 else:
@@ -162,7 +190,7 @@ class P4Environemnt:
 
                 goal_index = self.allGoals.index(use_goal)
 
-                if self.getClosenessToAllGoalsValue[goal_index][act_index] == np.inf:
+                if self.getClosenessToAllGoalsValue[goal_index][act_index] == np.inf: # i.e. if the value has not been pre-computed, use A-star to compute new
                 #if True:
                     action = self.actions[act_index]
 
@@ -176,20 +204,29 @@ class P4Environemnt:
                     if status =='step':
 
 
-                        #distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height']) # for real time A-starr
-                        distanceNormalizer = 100000 # for precalculated q-tables
+                        distanceNormalizer = float(self.lmap.info['width'] * self.lmap.info['height']) # for real time A-starr
+
 
                         if len(self.history) > 1 and not self.useOptimumCost:
                             if self.current == self.history[-2]: # get optimal cost only if zig zagging
                                 self.useOptimumCost = True #permanaently use optimum cost if zig zagging
                         _distance = self.normalized__distance(newState, use_goal)
                         if self.useOptimumCost:
-
-                                #optCost = float(self.lmap.optCost(use_goal, newState)) # for real time A-starr
+                        #if True:
+                            if q_table:
+                                distanceNormalizer = 100000 # for precalculated q-tables
                                 optCost = self.all_goals_q[use_goal].value(newState) # for precalculated q-tables. it is actually closeness
                                 if optCost is not None:
-                                    #closeness = (1.0- float(optCost/distanceNormalizer)) # for real time A-starr
                                     closeness = float(optCost / distanceNormalizer) # for precalculated q-tables
+                                else:
+                                    closeness = 1.0 - _distance
+
+                            else:
+
+                                optCost = float(self.lmap.optCost(use_goal, newState)) # for real time A-starr
+
+                                if optCost is not None:
+                                    closeness = (1.0- float(optCost/distanceNormalizer)) # for real time A-starr
 
 
                                 else:
@@ -209,7 +246,7 @@ class P4Environemnt:
 
                 return closeness
 
-
+   '''
 
     def getDivergenceFromAllGoalsFeature(self, state, act_index):
         '''

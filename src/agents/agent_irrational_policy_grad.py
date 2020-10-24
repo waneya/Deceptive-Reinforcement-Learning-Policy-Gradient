@@ -23,7 +23,7 @@ BETA = 1
 DECEPTIVE = True
 USE_SINGLE_POLICY = True
 
-SIMPLE_SMOOTH = False
+SIMPLE_SMOOTH = True
 PRUNE = False
 DEBUG = True
 
@@ -54,17 +54,17 @@ class Agent(object):
 
                 if os.path.isfile(q_file):
                     if DEBUG:
-                        print "loading q function for", real_goal
+                        print "loading q function for", goal
                     goal_qf.load(q_file)
 
 
                 else:
                     if DEBUG:
-                        print "training q function for", real_goal
-                    qFunction.train(goal_qf, lmap, real_goal, TERM_V, GAMMA)
+                        print "training q function for", goal
+                    qFunction.train(goal_qf, lmap, goal, TERM_V, GAMMA)
                     goal_qf.save(q_file)
 
-                print (goal_qf.q_tbl)
+                #print (goal_qf.q_tbl)
 
 
         # Section of code below will either
@@ -217,7 +217,7 @@ class Agent(object):
             default_prob_real = 0.05 #initial probability of moving towards real goal
             default_prob_others = 0.95 #initial probability of taking deceptive action
             delta_prob = 0.4* default_prob_others
-            maintain_at = 0.7 # what is the probability of choosing policy action
+            maintain_at = 0.55 # maintnian the real goal proability at this value in case of confusion
             retantion = maintain_at - default_prob_real
         else:
 
@@ -296,6 +296,7 @@ class Agent(object):
             margin = 2* simple_prune_real
             #probability_not_decrease_zero = (self.simple_prune_increment_param - simple_prune_real) > (margin + default_prob_real)
             probability_not_decrease_zero = (stageTwoProbs[0] - simple_prune_real) >= (default_prob_real) + retantion
+            #probability_not_decrease_zero = (stageTwoProbs[0] - simple_prune_real) >= maintain_at
             if not reChoose and \
                     not confused and \
                     probability_not_decrease_zero: #make sure probability does not decrease below 0
